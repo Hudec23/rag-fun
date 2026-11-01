@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/events/generate.token.schema.json",
+  "title": "Event generate.token",
+  "description": "Producer: worker. Transport: Redis pub/sub channel 'events:{run_id}', message = this JSON (UTF-8). Consumer: api, which relays it unchanged as an SSE message with 'event: generate.token' and 'data: <json>' on GET /api/v1/events?run_id=\u2026; consumer of that: web. Delivery: at-most-once, no replay \u2014 clients refetch GET /stage-runs/{id} on (re)connect. Generate stage only; one per streamed delta, index contiguous from 0. Lossy (pub/sub); the final answer is in the artifact.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type",
+    "run_id",
+    "stage_run_id",
+    "stage",
+    "version",
+    "ts",
+    "index",
+    "text"
+  ],
+  "properties": {
+    "type": {
+      "const": "generate.token"
+    },
+    "run_id": {
+      "$ref": "../shared/common.schema.json#/$defs/Id"
+    },
+    "stage_run_id": {
+      "$ref": "../shared/common.schema.json#/$defs/Id"
+    },
+    "stage": {
+      "$ref": "../shared/common.schema.json#/$defs/Stage"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "ts": {
+      "$ref": "../shared/common.schema.json#/$defs/Timestamp"
+    },
+    "index": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "text": {
+      "type": "string",
+      "description": "Token delta as streamed by the chat model."
+    }
+  },
+  "examples": [
+    {
+      "run_id": "019a4b2c-2000-7c00-9000-000000000002",
+      "stage_run_id": "019a4b2c-2100-7c00-9000-000000000003",
+      "stage": "generate",
+      "version": 1,
+      "ts": "2026-11-01T18:22:05.123Z",
+      "index": 0,
+      "text": "Revenue",
+      "type": "generate.token"
+    }
+  ]
+}

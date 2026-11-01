@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/artifacts/generate.schema.json",
+  "title": "Generate stage artifact",
+  "description": "Producer: worker generate job. Stored at s3://artifacts/{run_id}/generate/v{version}.json. Consumers: api, web. Context = rerank 'after' hits (or retrieve fused when rerank was never run), added in rank order while used_context_tokens + chunk tokens ≤ max_context_tokens; each included chunk is numbered [n] from 1. Token counts use the BAAI/bge-m3 tokenizer as an approximation for every chat model (labelled 'approx.' in the UI). citations = distinct [n] markers found in the answer that map to an included chunk, ascending.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "stage", "model", "messages", "budget", "context", "answer", "citations", "usage"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "stage": { "const": "generate" },
+    "model": {
+      "type": "object", "additionalProperties": false, "required": ["provider", "model"],
+      "properties": { "provider": { "$ref": "../shared/common.schema.json#/$defs/ChatProvider" }, "model": { "type": "string" } }
+    },
+    "messages": { "type": "array", "items": { "$ref": "transform.schema.json#/$defs/Message" }, "minItems": 2 },
+    "budget": {
+      "type": "object", "additionalProperties": false,
+      "required": ["max_context_tokens", "system_tokens", "question_tokens", "used_context_tokens", "chunks_included", "chunks_dropped"],
+      "properties": {
+        "max_context_tokens": { "type": "integer", "minimum": 1 },
+        "system_tokens": { "type": "integer", "minimum": 0 },
+        "question_tokens": { "type": "integer", "minimum": 0 },
+        "used_context_tokens": { "type": "integer", "minimum": 0 },
+        "chunks_included": { "type": "integer", "minimum": 0 },
+        "chunks_dropped": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "context": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["n", "hit", "tokens"],
+        "properties": {
+          "n": { "type": "integer", "minimum": 1 },
+          "hit": { "$ref": "../shared/common.schema.json#/$defs/Hit" },
+          "tokens": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "answer": { "type": "string" },
+    "citations": { "type": "array", "items": { "type": "integer", "minimum": 1 }, "uniqueItems": true },
+    "usage": {
+      "type": "object", "additionalProperties": false, "required": ["prompt_tokens", "completion_tokens"],
+      "description": "As reported by the provider; null when not reported.",
+      "properties": {
+        "prompt_tokens": { "type": ["integer", "null"], "minimum": 0 },
+        "completion_tokens": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    }
+  }
+}

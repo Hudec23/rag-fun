@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/events/stage.completed.schema.json",
+  "title": "Event stage.completed",
+  "description": "Producer: worker. Transport: Redis pub/sub channel 'events:{run_id}', message = this JSON (UTF-8). Consumer: api, which relays it unchanged as an SSE message with 'event: stage.completed' and 'data: <json>' on GET /api/v1/events?run_id=\u2026; consumer of that: web. Delivery: at-most-once, no replay \u2014 clients refetch GET /stage-runs/{id} on (re)connect. Published only AFTER the stage-results callback returned 2xx, so a client that refetches the stage run sees status done.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type",
+    "run_id",
+    "stage_run_id",
+    "stage",
+    "version",
+    "ts",
+    "artifact_key",
+    "summary"
+  ],
+  "properties": {
+    "type": {
+      "const": "stage.completed"
+    },
+    "run_id": {
+      "$ref": "../shared/common.schema.json#/$defs/Id"
+    },
+    "stage_run_id": {
+      "$ref": "../shared/common.schema.json#/$defs/Id"
+    },
+    "stage": {
+      "$ref": "../shared/common.schema.json#/$defs/Stage"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "ts": {
+      "$ref": "../shared/common.schema.json#/$defs/Timestamp"
+    },
+    "artifact_key": {
+      "$ref": "../shared/common.schema.json#/$defs/S3Key"
+    },
+    "summary": {
+      "$ref": "../shared/summary.schema.json"
+    }
+  },
+  "examples": [
+    {
+      "run_id": "019a4b2c-2000-7c00-9000-000000000002",
+      "stage_run_id": "019a4b2c-2100-7c00-9000-000000000003",
+      "stage": "chunk",
+      "version": 1,
+      "ts": "2026-11-01T18:22:05.123Z",
+      "artifact_key": "019a4b2c-2000-7c00-9000-000000000002/chunk/v1.json",
+      "summary": {
+        "stage": "chunk",
+        "chunks": 42,
+        "min_chars": 120,
+        "max_chars": 998,
+        "mean_chars": 731.5
+      },
+      "type": "stage.completed"
+    }
+  ]
+}

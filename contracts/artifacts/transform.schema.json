@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/artifacts/transform.schema.json",
+  "title": "Query transform stage artifact",
+  "description": "Producer: worker transform job. Stored at s3://artifacts/{run_id}/transform/v{version}.json. Consumers: worker retrieve job, api, web. queries = what retrieve embeds: none → [question]; rewrite → [rewritten]; multi_query → [question, q1..qN]; hyde → [hypothetical document] (search_text). messages = prompt sent to the chat model (empty for none).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "stage", "strategy", "question", "queries", "hyde_document", "messages", "model"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "stage": { "const": "transform" },
+    "strategy": { "type": "string", "enum": ["none", "rewrite", "multi_query", "hyde"] },
+    "question": { "type": "string", "minLength": 1 },
+    "queries": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1, "maxItems": 6 },
+    "hyde_document": { "type": ["string", "null"] },
+    "messages": { "type": "array", "items": { "$ref": "#/$defs/Message" } },
+    "model": {
+      "oneOf": [{ "type": "null" }, {
+        "type": "object", "additionalProperties": false, "required": ["provider", "model"],
+        "properties": { "provider": { "$ref": "../shared/common.schema.json#/$defs/ChatProvider" }, "model": { "type": "string" } }
+      }],
+      "description": "null for strategy none."
+    }
+  },
+  "$defs": {
+    "Message": {
+      "type": "object", "additionalProperties": false, "required": ["role", "content"],
+      "properties": { "role": { "type": "string", "enum": ["system", "user", "assistant"] }, "content": { "type": "string" } }
+    }
+  }
+}

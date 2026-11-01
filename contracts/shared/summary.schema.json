@@ -1,0 +1,292 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/shared/summary.schema.json",
+  "title": "Stage summary",
+  "description": "Small per-stage numbers shown in stage cards. Producer: worker (in stage-results callback and stage.completed). Stored in stage_runs.summary by api. Discriminator: stage.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/ParseSummary"
+    },
+    {
+      "$ref": "#/$defs/ChunkSummary"
+    },
+    {
+      "$ref": "#/$defs/EmbedSummary"
+    },
+    {
+      "$ref": "#/$defs/StoreSummary"
+    },
+    {
+      "$ref": "#/$defs/TransformSummary"
+    },
+    {
+      "$ref": "#/$defs/RetrieveSummary"
+    },
+    {
+      "$ref": "#/$defs/RerankSummary"
+    },
+    {
+      "$ref": "#/$defs/GenerateSummary"
+    }
+  ],
+  "$defs": {
+    "ParseSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "pages",
+        "elements",
+        "tables",
+        "pictures",
+        "chars",
+        "ocr_used"
+      ],
+      "properties": {
+        "stage": {
+          "const": "parse"
+        },
+        "pages": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "elements": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tables": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pictures": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "chars": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ocr_used": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ChunkSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "chunks",
+        "min_chars",
+        "max_chars",
+        "mean_chars"
+      ],
+      "properties": {
+        "stage": {
+          "const": "chunk"
+        },
+        "chunks": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "min_chars": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_chars": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mean_chars": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "EmbedSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "chunks",
+        "dense_dims",
+        "mean_tokens",
+        "over_limit",
+        "mean_sparse_nnz"
+      ],
+      "properties": {
+        "stage": {
+          "const": "embed"
+        },
+        "chunks": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dense_dims": {
+          "type": "integer",
+          "enum": [
+            384,
+            768,
+            1024
+          ]
+        },
+        "mean_tokens": {
+          "type": "number",
+          "minimum": 0
+        },
+        "over_limit": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mean_sparse_nnz": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "StoreSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "points_written",
+        "points_deleted",
+        "qdrant_collection"
+      ],
+      "properties": {
+        "stage": {
+          "const": "store"
+        },
+        "points_written": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "points_deleted": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "qdrant_collection": {
+          "type": "string",
+          "pattern": "^rf_[0-9a-f]{32}$"
+        }
+      }
+    },
+    "TransformSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "queries"
+      ],
+      "properties": {
+        "stage": {
+          "const": "transform"
+        },
+        "queries": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "RetrieveSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "queries",
+        "hits"
+      ],
+      "properties": {
+        "stage": {
+          "const": "retrieve"
+        },
+        "queries": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "hits": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "RerankSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "enabled",
+        "in",
+        "out"
+      ],
+      "properties": {
+        "stage": {
+          "const": "rerank"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "in": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "out": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "GenerateSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "answer_chars",
+        "citations",
+        "chunks_included",
+        "prompt_tokens",
+        "completion_tokens"
+      ],
+      "properties": {
+        "stage": {
+          "const": "generate"
+        },
+        "answer_chars": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "citations": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "chunks_included": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "prompt_tokens": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "completion_tokens": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "stage": "chunk",
+      "chunks": 42,
+      "min_chars": 120,
+      "max_chars": 998,
+      "mean_chars": 731.5
+    }
+  ]
+}

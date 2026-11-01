@@ -1,0 +1,15 @@
+{
+  "run_id": "019a4b2c-2000-7c00-9000-000000000002",
+  "stage_run_id": "019a4b2c-2100-7c00-9000-000000000003",
+  "stage": "parse",
+  "version": 1,
+  "ts": "2026-11-01T18:22:05.123Z",
+  "error": {
+    "code": "UNSUPPORTED_FOR_STRATEGY",
+    "message": "plain_text cannot read image/png",
+    "details": {
+      "mime": "image/png"
+    }
+  },
+  "type": "stage.failed"
+}

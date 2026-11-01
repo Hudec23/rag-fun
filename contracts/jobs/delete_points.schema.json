@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/jobs/delete_points.schema.json",
+  "title": "Job payload: delete_points",
+  "description": "Producer: api (DELETE /files/{id}: one job per collection the file has a store stage run in). Consumer: worker (queue 'query', function 'delete_points'). Deletes points with meta.file_id = file_id; no-op if the collection does not exist. No callback, no events. Idempotent.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "qdrant_name",
+    "file_id"
+  ],
+  "properties": {
+    "qdrant_name": {
+      "type": "string",
+      "pattern": "^rf_[0-9a-f]{32}$"
+    },
+    "file_id": {
+      "$ref": "../shared/common.schema.json#/$defs/Id"
+    }
+  },
+  "examples": [
+    {
+      "qdrant_name": "rf_019a4b2c1d007b0080000000000000aa",
+      "file_id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01"
+    }
+  ]
+}

@@ -1,0 +1,1033 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/shared/common.schema.json",
+  "title": "Shared definitions",
+  "description": "Reusable types referenced by every other contract. Not a message itself.",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "description": "UUIDv7, canonical lowercase 8-4-4-4-12 form.",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "examples": [
+        "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01"
+      ]
+    },
+    "PointId": {
+      "type": "string",
+      "description": "Qdrant point id: uuid5(3896d314-1e95-4a3a-b45a-945f9f0b541d, doc_id) as 32 hex chars (qdrant-haystack convert_id).",
+      "pattern": "^[0-9a-f]{32}$"
+    },
+    "DocId": {
+      "type": "string",
+      "description": "Haystack Document id of a chunk: '{file_id}:{chunk_index:05d}'.",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}:[0-9]{5}$"
+    },
+    "Timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC ISO-8601 with millisecond precision and Z suffix.",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+      "examples": [
+        "2026-11-01T18:22:05.123Z"
+      ]
+    },
+    "S3Key": {
+      "type": "string",
+      "description": "Object key inside a bucket (no bucket prefix, no leading slash).",
+      "minLength": 1,
+      "maxLength": 1024,
+      "pattern": "^[^/].*$"
+    },
+    "Tag": {
+      "type": "string",
+      "description": "User tag. Lowercase; letters, digits and _ . : - ; starts with letter or digit.",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9][a-z0-9_.:-]*$"
+    },
+    "Tags": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Tag"
+      },
+      "uniqueItems": true,
+      "maxItems": 32,
+      "description": "Set of tags, sorted ascending by the producer."
+    },
+    "ErrorCode": {
+      "type": "string",
+      "description": "One of the keys of contracts/shared/errors.json#codes.",
+      "enum": [
+        "VALIDATION_ERROR",
+        "UNAUTHORIZED",
+        "BATCH_NOT_FOUND",
+        "FILE_NOT_FOUND",
+        "COLLECTION_NOT_FOUND",
+        "RUN_NOT_FOUND",
+        "STAGE_RUN_NOT_FOUND",
+        "ARTIFACT_NOT_FOUND",
+        "PAGE_NOT_FOUND",
+        "POINT_NOT_FOUND",
+        "PIPELINE_GRAPH_NOT_FOUND",
+        "EMPTY_UPLOAD",
+        "UNSUPPORTED_FILE_TYPE",
+        "FILE_TOO_LARGE",
+        "TOO_MANY_FILES",
+        "COLLECTION_NAME_TAKEN",
+        "STAGE_PREREQUISITE_MISSING",
+        "STAGE_ALREADY_RUNNING",
+        "UNSUPPORTED_FOR_STRATEGY",
+        "PARSE_FAILED",
+        "MODEL_NOT_AVAILABLE",
+        "LLM_ERROR",
+        "EMBEDDING_ERROR",
+        "QDRANT_ERROR",
+        "S3_ERROR",
+        "DEPENDENCY_UNAVAILABLE",
+        "INTERNAL_ERROR"
+      ]
+    },
+    "ErrorBody": {
+      "type": "object",
+      "description": "Inner error object.",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message",
+        "details"
+      ],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ErrorCode"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "description": "Human-readable, English."
+        },
+        "details": {
+          "type": "object",
+          "description": "Flat machine-readable context, e.g. {\"field\": \"tags.0\", \"limit\": 50}. Empty object when none.",
+          "maxProperties": 20,
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "integer",
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "Error": {
+      "type": "object",
+      "description": "Shared error shape for every error response and every failed stage.",
+      "additionalProperties": false,
+      "required": [
+        "error"
+      ],
+      "properties": {
+        "error": {
+          "$ref": "#/$defs/ErrorBody"
+        }
+      },
+      "examples": [
+        {
+          "error": {
+            "code": "FILE_NOT_FOUND",
+            "message": "File not found",
+            "details": {
+              "file_id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01"
+            }
+          }
+        }
+      ]
+    },
+    "Mime": {
+      "type": "string",
+      "description": "Supported MIME types (R-002). The api detects it from the extension, lowercase.",
+      "enum": [
+        "application/pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "text/markdown",
+        "text/plain",
+        "text/html",
+        "text/csv",
+        "image/png",
+        "image/jpeg",
+        "image/tiff"
+      ]
+    },
+    "RunKind": {
+      "type": "string",
+      "enum": [
+        "ingest",
+        "query"
+      ]
+    },
+    "IngestStage": {
+      "type": "string",
+      "enum": [
+        "parse",
+        "chunk",
+        "embed",
+        "store"
+      ],
+      "description": "In pipeline order."
+    },
+    "QueryStage": {
+      "type": "string",
+      "enum": [
+        "transform",
+        "retrieve",
+        "rerank",
+        "generate"
+      ],
+      "description": "In pipeline order."
+    },
+    "Stage": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/IngestStage"
+        },
+        {
+          "$ref": "#/$defs/QueryStage"
+        }
+      ]
+    },
+    "StageStatus": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "running",
+        "done",
+        "failed",
+        "stale"
+      ],
+      "description": "stale = an upstream stage was re-run after this version was produced."
+    },
+    "ElementType": {
+      "type": "string",
+      "description": "Parsed element kind (Docling labels collapsed).",
+      "enum": [
+        "title",
+        "heading",
+        "text",
+        "list_item",
+        "table",
+        "picture",
+        "caption",
+        "formula",
+        "code",
+        "footnote",
+        "page_header",
+        "page_footer"
+      ]
+    },
+    "ChunkElementType": {
+      "type": "string",
+      "description": "Dominant content of a chunk: table = only table content, image_ocr = only OCR text from a picture/scan, text = anything else without tables, mixed = text plus table.",
+      "enum": [
+        "text",
+        "table",
+        "image_ocr",
+        "mixed"
+      ]
+    },
+    "ParseStrategy": {
+      "type": "string",
+      "enum": [
+        "docling_layout",
+        "docling_ocr",
+        "plain_text"
+      ]
+    },
+    "ChunkStrategy": {
+      "type": "string",
+      "enum": [
+        "fixed",
+        "sentence",
+        "recursive",
+        "semantic",
+        "structure",
+        "table"
+      ]
+    },
+    "DenseModel": {
+      "type": "string",
+      "description": "Allowed Ollama embedding models (SYSTEM.md \u00a79a). Dims: bge-m3 1024, nomic-embed-text 768, mxbai-embed-large 1024, all-minilm 384.",
+      "enum": [
+        "bge-m3",
+        "nomic-embed-text",
+        "mxbai-embed-large",
+        "all-minilm"
+      ]
+    },
+    "SparseModel": {
+      "type": "string",
+      "enum": [
+        "Qdrant/bm25",
+        "prithivida/Splade_PP_en_v1"
+      ]
+    },
+    "RerankModel": {
+      "type": "string",
+      "enum": [
+        "Xenova/ms-marco-MiniLM-L-6-v2",
+        "BAAI/bge-reranker-base"
+      ]
+    },
+    "ChatProvider": {
+      "type": "string",
+      "enum": [
+        "ollama",
+        "anthropic",
+        "openai_compatible"
+      ]
+    },
+    "HttpUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://",
+      "maxLength": 500
+    },
+    "ChatModelConfig": {
+      "type": "object",
+      "description": "Resolved chat model settings, sent inside query job payloads. api_key is null for ollama.",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "model",
+        "base_url",
+        "api_key"
+      ],
+      "properties": {
+        "provider": {
+          "$ref": "#/$defs/ChatProvider"
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "e.g. qwen3:8b, claude-sonnet-5-5, gpt-4.1-mini"
+        },
+        "base_url": {
+          "description": "ollama: Ollama URL; openai_compatible: base URL incl. /v1; anthropic: null (SDK default).",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/HttpUrl"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "api_key": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 500
+        }
+      }
+    },
+    "DenseModelConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model",
+        "dims",
+        "ollama_url"
+      ],
+      "properties": {
+        "model": {
+          "$ref": "#/$defs/DenseModel"
+        },
+        "dims": {
+          "type": "integer",
+          "enum": [
+            384,
+            768,
+            1024
+          ]
+        },
+        "ollama_url": {
+          "$ref": "#/$defs/HttpUrl"
+        }
+      }
+    },
+    "CollectionRef": {
+      "type": "object",
+      "description": "Everything the worker needs to address a collection.",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "qdrant_name",
+        "dense",
+        "sparse_model"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "qdrant_name": {
+          "type": "string",
+          "pattern": "^rf_[0-9a-f]{32}$"
+        },
+        "dense": {
+          "$ref": "#/$defs/DenseModelConfig"
+        },
+        "sparse_model": {
+          "$ref": "#/$defs/SparseModel"
+        }
+      }
+    },
+    "FilterKey": {
+      "type": "string",
+      "description": "Filterable payload field; maps to Qdrant key 'meta.<key>'.",
+      "enum": [
+        "file_id",
+        "batch_id",
+        "tags",
+        "mime",
+        "element_type",
+        "chunk_strategy",
+        "parse_strategy",
+        "page",
+        "chunk_index"
+      ]
+    },
+    "FilterCondition": {
+      "description": "match.value = equals; match.any = equals any of; range = numeric bounds (page, chunk_index only).",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "key",
+            "match"
+          ],
+          "properties": {
+            "key": {
+              "$ref": "#/$defs/FilterKey"
+            },
+            "match": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "value"
+              ],
+              "properties": {
+                "value": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ],
+                  "maxLength": 200
+                }
+              },
+              "title": "MatchValue"
+            }
+          },
+          "title": "MatchValueCondition"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "key",
+            "match"
+          ],
+          "properties": {
+            "key": {
+              "$ref": "#/$defs/FilterKey"
+            },
+            "match": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "any"
+              ],
+              "properties": {
+                "any": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 50,
+                  "items": {
+                    "type": [
+                      "string",
+                      "integer"
+                    ],
+                    "maxLength": 200
+                  }
+                }
+              },
+              "title": "MatchAny"
+            }
+          },
+          "title": "MatchAnyCondition"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "key",
+            "range"
+          ],
+          "properties": {
+            "key": {
+              "type": "string",
+              "enum": [
+                "page",
+                "chunk_index"
+              ]
+            },
+            "range": {
+              "type": "object",
+              "additionalProperties": false,
+              "minProperties": 1,
+              "properties": {
+                "gte": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "lte": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "title": "RangeBounds"
+            }
+          },
+          "title": "RangeCondition"
+        }
+      ]
+    },
+    "PayloadFilter": {
+      "type": "object",
+      "description": "Qdrant-style filter. must = AND, should = OR (at least one), must_not = NOT. Empty object = no filter.",
+      "additionalProperties": false,
+      "properties": {
+        "must": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/FilterCondition"
+          }
+        },
+        "should": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/FilterCondition"
+          }
+        },
+        "must_not": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/FilterCondition"
+          }
+        }
+      },
+      "examples": [
+        {
+          "must": [
+            {
+              "key": "tags",
+              "match": {
+                "any": [
+                  "finance"
+                ]
+              }
+            },
+            {
+              "key": "page",
+              "range": {
+                "gte": 1,
+                "lte": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "ParseParams": {
+      "description": "Parse stage params, discriminated by strategy.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "strategy",
+            "extract_tables",
+            "page_images"
+          ],
+          "properties": {
+            "strategy": {
+              "const": "docling_layout"
+            },
+            "extract_tables": {
+              "type": "boolean",
+              "default": true,
+              "description": "Docling TableFormer structure recognition."
+            },
+            "page_images": {
+              "type": "boolean",
+              "default": true,
+              "description": "Render page PNGs at 1.5x for the bbox overlay."
+            }
+          },
+          "title": "DoclingLayoutParams"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "strategy",
+            "extract_tables",
+            "page_images"
+          ],
+          "properties": {
+            "strategy": {
+              "const": "docling_ocr"
+            },
+            "extract_tables": {
+              "type": "boolean",
+              "default": true
+            },
+            "page_images": {
+              "type": "boolean",
+              "default": true
+            }
+          },
+          "title": "DoclingOcrParams"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "strategy"
+          ],
+          "properties": {
+            "strategy": {
+              "const": "plain_text"
+            }
+          },
+          "title": "PlainTextParams"
+        }
+      ]
+    },
+    "ChunkParams": {
+      "description": "Chunk stage params, discriminated by strategy. All lengths are > overlap (validated by api: VALIDATION_ERROR).",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "strategy",
+            "split_by",
+            "length",
+            "overlap"
+          ],
+          "properties": {
+            "strategy": {
+              "const": "fixed"
+            },
+            "split_by": {
+              "type": "string",
+              "enum": [
+                "word",
+                "char"
+              ],
+              "default": "word"
+            },
+            "length": {
+              "type": "integer",
+              "minimum": 2,
+              "maximum": 4000,
+              "default": 200
+            },
+            "overlap": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000,
+              "default": 20
+            }
+          },
+          "title": "FixedChunkParams"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "strategy",
+            "length",
+            "overlap"
+          ],
+          "properties": {
+            "strategy": {
+              "const": "sentence"
+            },
+            "length": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 5,
+              "description": "Sentences per chunk."
+            },
+            "overlap": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10,
+              "default": 1
+            }
+          },
+          "title": "SentenceChunkParams"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "strategy",
+            "length",
+            "overlap",
+            "separators"
+          ],
+          "properties": {
+            "strategy": {
+              "const": "recursive"
+            },
+            "length": {
+              "type": "integer",
+              "minimum": 50,
+              "maximum": 8000,
+              "default": 1000,
+              "description": "Characters."
+            },
+            "overlap": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2000,
+              "default": 100
+            },
+            "separators": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 10,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20
+              },
+              "default": [
+                "\n\n",
+                "sentence",
+                "\n",
+                " "
+              ],
+              "description": "Tried in order; 'sentence' = NLTK sentence boundary (Haystack RecursiveDocumentSplitter)."
+            }
+          },
+          "title": "RecursiveChunkParams"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "strategy",
+            "breakpoint_percentile",
+            "min_sentences",
+            "max_sentences"
+          ],
+          "properties": {
+            "strategy": {
+              "const": "semantic"
+            },
+            "breakpoint_percentile": {
+              "type": "integer",
+              "minimum": 50,
+              "maximum": 99,
+              "default": 90,
+              "description": "Split where cosine distance between neighbouring sentences is above this percentile."
+            },
+            "min_sentences": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20,
+              "default": 2
+            },
+            "max_sentences": {
+              "type": "integer",
+              "minimum": 2,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          "title": "SemanticChunkParams"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "strategy",
+            "max_tokens",
+            "merge_peers"
+          ],
+          "properties": {
+            "strategy": {
+              "const": "structure"
+            },
+            "max_tokens": {
+              "type": "integer",
+              "minimum": 64,
+              "maximum": 8192,
+              "default": 512,
+              "description": "Counted with the collection's dense-model tokenizer."
+            },
+            "merge_peers": {
+              "type": "boolean",
+              "default": true
+            }
+          },
+          "title": "StructureChunkParams"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "strategy",
+            "row_chunks",
+            "text_length",
+            "text_overlap"
+          ],
+          "properties": {
+            "strategy": {
+              "const": "table"
+            },
+            "row_chunks": {
+              "type": "boolean",
+              "default": false,
+              "description": "Also emit one chunk per table row, header repeated as 'col: value' lines."
+            },
+            "text_length": {
+              "type": "integer",
+              "minimum": 50,
+              "maximum": 8000,
+              "default": 1000,
+              "description": "Non-table text uses recursive with this length."
+            },
+            "text_overlap": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2000,
+              "default": 100
+            }
+          },
+          "title": "TableChunkParams"
+        }
+      ]
+    },
+    "EmbedParams": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "batch_size"
+      ],
+      "properties": {
+        "batch_size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128,
+          "default": 16
+        }
+      }
+    },
+    "StoreParams": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {},
+      "description": "No params; collection comes from the ingest run."
+    },
+    "TransformParams": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strategy",
+        "num_queries"
+      ],
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "enum": [
+            "none",
+            "rewrite",
+            "multi_query",
+            "hyde"
+          ],
+          "default": "none"
+        },
+        "num_queries": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 5,
+          "default": 3,
+          "description": "Used by multi_query only."
+        }
+      }
+    },
+    "RetrieveParams": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "top_k",
+        "rrf_k",
+        "filters"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "dense",
+            "sparse",
+            "hybrid"
+          ],
+          "default": "hybrid"
+        },
+        "top_k": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50,
+          "default": 10
+        },
+        "rrf_k": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "default": 60
+        },
+        "filters": {
+          "$ref": "#/$defs/PayloadFilter"
+        }
+      }
+    },
+    "RerankParams": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "top_n"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "false = pass-through, before == after."
+        },
+        "top_n": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50,
+          "default": 5
+        }
+      }
+    },
+    "GenerateParams": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_context_tokens",
+        "temperature",
+        "max_answer_tokens"
+      ],
+      "properties": {
+        "max_context_tokens": {
+          "type": "integer",
+          "minimum": 256,
+          "maximum": 100000,
+          "default": 4000
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "default": 0.2
+        },
+        "max_answer_tokens": {
+          "type": "integer",
+          "minimum": 16,
+          "maximum": 8000,
+          "default": 800
+        }
+      }
+    },
+    "Hit": {
+      "type": "object",
+      "description": "One retrieved chunk.",
+      "additionalProperties": false,
+      "required": [
+        "point_id",
+        "doc_id",
+        "rank",
+        "score",
+        "content",
+        "meta"
+      ],
+      "properties": {
+        "point_id": {
+          "$ref": "#/$defs/PointId"
+        },
+        "doc_id": {
+          "$ref": "#/$defs/DocId"
+        },
+        "rank": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based position in this list."
+        },
+        "score": {
+          "type": "number",
+          "description": "Score in this list (cosine, sparse dot, RRF or reranker)."
+        },
+        "content": {
+          "type": "string"
+        },
+        "meta": {
+          "$ref": "../qdrant/payload.schema.json#/$defs/Meta"
+        }
+      }
+    },
+    "PageInfo": {
+      "type": "object",
+      "description": "Pagination: offset/limit, reused by every list endpoint. Sort order is fixed per endpoint (documented there).",
+      "additionalProperties": false,
+      "required": [
+        "total",
+        "limit",
+        "offset"
+      ],
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

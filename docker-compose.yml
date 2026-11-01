@@ -1,0 +1,79 @@
+# The whole app. Start with ./start.sh (macOS/Linux) or start.cmd (Windows); UI on http://localhost:8080.
+# Ollama runs natively on the host (GPU: Metal on macOS, CUDA on Windows) — not in this file.
+name: ragfun
+
+x-env: &env
+  env_file:
+    - path: .env.defaults
+    - path: .env
+      required: false
+  extra_hosts: ["host.docker.internal:host-gateway"]
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:17.11
+    environment: { POSTGRES_USER: ragfun, POSTGRES_PASSWORD: ragfun, POSTGRES_DB: ragfun }
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck: { test: ["CMD", "pg_isready", "-U", "ragfun"], interval: 2s, retries: 60 }
+    restart: unless-stopped
+
+  redis:
+    image: redis:8.6.8
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 2s, retries: 60 }
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:v1.19.2
+    ports: ["127.0.0.1:6333:6333"]
+    volumes: ["qdrant:/qdrant/storage"]
+    restart: unless-stopped
+
+  s3:
+    image: rustfs/rustfs:1.0.3
+    environment:
+      RUSTFS_ACCESS_KEY: ragfun
+      RUSTFS_SECRET_KEY: ragfun-secret
+      RUSTFS_VOLUMES: /data
+      RUSTFS_ADDRESS: "0.0.0.0:9000"
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_CONSOLE_ADDRESS: "0.0.0.0:9001"
+    ports: ["127.0.0.1:9001:9001"]
+    volumes: ["s3data:/data"]
+    restart: unless-stopped
+
+  api:
+    <<: *env
+    build: { context: services/api, target: runtime }
+    ports: ["127.0.0.1:8000:8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      qdrant: { condition: service_started }
+      s3: { condition: service_started }
+
+  worker-ingest:
+    <<: *env
+    build: { context: services/worker, target: runtime }
+    environment: { WORKER_QUEUE: ingest }
+    depends_on:
+      api: { condition: service_healthy }
+
+  worker-query:
+    <<: *env
+    build: { context: services/worker, target: runtime }
+    environment: { WORKER_QUEUE: query }
+    depends_on:
+      api: { condition: service_healthy }
+
+  web:
+    build: { context: services/web }
+    ports: ["127.0.0.1:8080:80"]
+    depends_on:
+      api: { condition: service_healthy }
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  qdrant:
+  s3data:

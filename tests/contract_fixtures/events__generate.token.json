@@ -1,0 +1,10 @@
+{
+  "run_id": "019a4b2c-2000-7c00-9000-000000000002",
+  "stage_run_id": "019a4b2c-2100-7c00-9000-000000000003",
+  "stage": "generate",
+  "version": 1,
+  "ts": "2026-11-01T18:22:05.123Z",
+  "index": 0,
+  "text": "Revenue",
+  "type": "generate.token"
+}

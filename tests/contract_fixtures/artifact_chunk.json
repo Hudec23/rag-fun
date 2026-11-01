@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "stage": "chunk",
+  "strategy": "recursive",
+  "params": {
+    "strategy": "recursive",
+    "length": 300,
+    "overlap": 30,
+    "separators": [
+      "\n\n",
+      "sentence",
+      "\n",
+      " "
+    ]
+  },
+  "parse_strategy": "docling_layout",
+  "source_text": "Q3 Report\n\nRevenue grew 12 percent year over year, driven by subscriptions.\n\nOperating costs stayed flat while headcount increased slightly.\n\nRegional results\n\nEurope contributed most of the new subscription revenue.\n\nOutlook\n\nWe expect revenue growth to continue in Q4 thanks to the new pricing.\n\nThe board approved a dividend of 0.40 EUR per share.",
+  "chunks": [
+    {
+      "index": 0,
+      "doc_id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01:00000",
+      "text": "Q3 Report\n\nRevenue grew 12 percent year over year, driven by subscriptions.",
+      "char_start": 0,
+      "char_end": 75,
+      "element_ids": [
+        "e-0000",
+        "e-0001"
+      ],
+      "page_numbers": [
+        1
+      ],
+      "section_path": [
+        "Q3 Report"
+      ],
+      "element_type": "text",
+      "char_count": 75,
+      "token_estimate": 19
+    },
+    {
+      "index": 1,
+      "doc_id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01:00001",
+      "text": "Revenue grew 12 percent year over year, driven by subscriptions.\n\nOperating costs stayed flat while headcount increased slightly.",
+      "char_start": 11,
+      "char_end": 140,
+      "element_ids": [
+        "e-0001",
+        "e-0002"
+      ],
+      "page_numbers": [
+        1
+      ],
+      "section_path": [
+        "Q3 Report"
+      ],
+      "element_type": "text",
+      "char_count": 129,
+      "token_estimate": 33
+    },
+    {
+      "index": 2,
+      "doc_id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01:00002",
+      "text": "Regional results\n\nEurope contributed most of the new subscription revenue.",
+      "char_start": 142,
+      "char_end": 216,
+      "element_ids": [
+        "e-0003",
+        "e-0004"
+      ],
+      "page_numbers": [
+        1
+      ],
+      "section_path": [
+        "Regional results"
+      ],
+      "element_type": "text",
+      "char_count": 74,
+      "token_estimate": 19
+    },
+    {
+      "index": 3,
+      "doc_id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01:00003",
+      "text": "Outlook\n\nWe expect revenue growth to continue in Q4 thanks to the new pricing.\n\nThe board approved a dividend of 0.40 EUR per share.",
+      "char_start": 218,
+      "char_end": 350,
+      "element_ids": [
+        "e-0005",
+        "e-0006",
+        "e-0007"
+      ],
+      "page_numbers": [
+        2
+      ],
+      "section_path": [
+        "Outlook"
+      ],
+      "element_type": "text",
+      "char_count": 132,
+      "token_estimate": 33
+    }
+  ],
+  "stats": {
+    "count": 4,
+    "min_chars": 74,
+    "max_chars": 132,
+    "mean_chars": 102.5,
+    "histogram": {
+      "bin_edges": [
+        74.0,
+        132.0
+      ],
+      "counts": [
+        4
+      ]
+    }
+  },
+  "semantic": null
+}

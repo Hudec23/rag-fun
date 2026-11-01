@@ -1,0 +1,1253 @@
+openapi: 3.1.0
+info:
+  title: rag-fun api — public (web)
+  version: 1.0.0
+  description: |
+    Consumer: web (same origin, prefix /api/v1). Provider: api.
+
+    Conventions (apply to every endpoint):
+    - JSON bodies, UTF-8. Unknown body fields → 422 VALIDATION_ERROR (pydantic extra=forbid).
+    - Every non-2xx response body is the shared Error shape (contracts/shared/common.schema.json#/$defs/Error).
+      FastAPI/pydantic validation errors are converted to 422 VALIDATION_ERROR with details.field = dotted path of the first error.
+    - Pagination: query `limit` (1–200, default 50) and `offset` (≥0, default 0); response has `items` + `page` (PageInfo).
+      Sort order is fixed per endpoint and stated in its description.
+    - Times are UTC ISO-8601 with ms and Z. IDs are UUIDv7.
+
+    Stage rules (ingest: parse → chunk → embed → store; query: transform → retrieve → rerank → generate):
+    - "latest" row of a stage = highest version. "active" version = latest row when its status is done.
+    - Starting a stage (POST …/stages/{stage}):
+      * 409 STAGE_ALREADY_RUNNING if the stage's latest row is queued or running.
+      * 409 STAGE_PREREQUISITE_MISSING if a required upstream stage has no active version.
+        Required upstream: chunk←parse, embed←chunk, store←embed; retrieve←(none), rerank←retrieve, generate←retrieve.
+        Optional upstream used when active: retrieve uses transform; generate uses rerank instead of retrieve.
+      * Creates a row with version = latest+1 (1 if none), status queued, params = body.params; enqueues the job
+        (contracts/jobs/{stage}.schema.json); latest rows of all downstream stages that are done or failed become stale;
+        clears the run's run-all plan; publishes run.updated (stage_queued, and stages_stale if any). Returns 202.
+    - Run-all (POST …/run-all): stores a plan = ordered list of stages from `from_stage` to the last stage with their params,
+      starts the first one exactly like POST …/stages/{stage} (same 409 rules) and, each time a planned stage reports done,
+      starts the next planned one. A failed stage clears the plan. `from_stage` null = first stage in order whose latest row
+      is not done (all done → 200 with the run unchanged, nothing queued).
+servers:
+  - url: /api/v1
+tags:
+  - { name: system }
+  - { name: files }
+  - { name: collections }
+  - { name: ingest }
+  - { name: query }
+  - { name: artifacts }
+  - { name: qdrant }
+  - { name: settings }
+paths:
+  /health:
+    get:
+      tags: [system]
+      operationId: getHealth
+      summary: Liveness of the api process only (used by compose healthcheck and start scripts).
+      responses:
+        '200':
+          description: Alive.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+              example: { status: ok, service: api, version: 1.0.0 }
+  /status:
+    get:
+      tags: [system]
+      operationId: getStatus
+      summary: Health of every component for the web status bar (R-024). Each check times out after 2 s.
+      description: |
+        Order of components is fixed: api, worker-ingest, worker-query, postgres, redis, qdrant, s3, ollama.
+        api always ok. workers: heartbeat key exists (contracts/events/worker.heartbeat.schema.json).
+        postgres: SELECT 1. redis: PING. qdrant: GET /readyz. s3: HeadBucket uploads. ollama: GET {settings.ollama_url}/api/tags.
+      responses:
+        '200':
+          description: Always 200; failures are reported per component.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Status' }
+              example:
+                components:
+                  - { name: api, ok: true, latency_ms: 0, detail: null }
+                  - { name: worker-ingest, ok: true, latency_ms: 1, detail: null }
+                  - { name: worker-query, ok: true, latency_ms: 1, detail: null }
+                  - { name: postgres, ok: true, latency_ms: 2, detail: null }
+                  - { name: redis, ok: true, latency_ms: 1, detail: null }
+                  - { name: qdrant, ok: true, latency_ms: 3, detail: null }
+                  - { name: s3, ok: true, latency_ms: 4, detail: null }
+                  - { name: ollama, ok: false, latency_ms: 2000, detail: 'connect timeout http://host.docker.internal:11434' }
+
+  /batches:
+    post:
+      tags: [files]
+      operationId: uploadBatch
+      summary: Upload 1..MAX_FILES_PER_BATCH files as one batch (R-001, R-002, R-003).
+      description: |
+        multipart/form-data. Validation happens before anything is stored (all-or-nothing):
+        0 files → 400 EMPTY_UPLOAD; more than MAX_FILES_PER_BATCH → 413 TOO_MANY_FILES;
+        any file > MAX_UPLOAD_MB → 413 FILE_TOO_LARGE (details.filename); unknown extension → 415 UNSUPPORTED_FILE_TYPE (details.filename).
+        MIME is derived from the lowercase extension: .pdf .docx .pptx .xlsx .md .markdown .txt .html .htm .csv .png .jpg .jpeg .tif .tiff.
+        name defaults to "Batch YYYY-MM-DD HH:MM" (UTC). Each file stored at uploads/{batch_id}/{file_id}/{filename}.
+        Duplicate filenames inside a batch are allowed (different file ids).
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [files]
+              properties:
+                files: { type: array, items: { type: string, format: binary }, description: 'Repeated form field "files".' }
+                name: { type: string, minLength: 1, maxLength: 200 }
+                tags: { type: string, description: 'Comma-separated batch tags, each must match the Tag pattern, e.g. "finance,q3". Empty = no tags.', maxLength: 2000 }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BatchWithFiles' }
+              example:
+                batch: { id: 019a4b2c-1e00-7b00-8000-000000000001, name: Q3 reports, tags: [finance], file_count: 1, created_at: '2026-11-01T18:22:05.123Z' }
+                files:
+                  - { id: 019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01, batch_id: 019a4b2c-1e00-7b00-8000-000000000001, filename: q3-report.pdf, mime: application/pdf, size_bytes: 482113, sha256: 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08, tags: [], created_at: '2026-11-01T18:22:05.123Z' }
+        '400': { $ref: '#/components/responses/EmptyUpload' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedFileType' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503': { $ref: '#/components/responses/S3Error' }
+    get:
+      tags: [files]
+      operationId: listBatches
+      summary: List batches, newest first (created_at desc, id desc).
+      parameters: [{ $ref: '#/components/parameters/Limit' }, { $ref: '#/components/parameters/Offset' }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BatchList' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /batches/{batch_id}:
+    parameters: [{ $ref: '#/components/parameters/BatchId' }]
+    get:
+      tags: [files]
+      operationId: getBatch
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/BatchWithFiles' } } } }
+        '404': { $ref: '#/components/responses/BatchNotFound' }
+    patch:
+      tags: [files]
+      operationId: updateBatch
+      summary: Rename and/or replace batch tags. Does not touch Qdrant (re-run store to propagate tags).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BatchUpdate' }
+            example: { tags: [finance, q3] }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Batch' } } } }
+        '404': { $ref: '#/components/responses/BatchNotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /batches/{batch_id}/ingest:
+    parameters: [{ $ref: '#/components/parameters/BatchId' }]
+    post:
+      tags: [ingest]
+      operationId: ingestBatch
+      summary: Create one ingest run per file of the batch into a collection and run-all each from parse.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BatchIngestRequest' }
+      responses:
+        '202':
+          description: Runs created, first stage queued for each.
+          content: { application/json: { schema: { $ref: '#/components/schemas/IngestRunList' } } }
+        '404': { $ref: '#/components/responses/BatchOrCollectionNotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /files:
+    get:
+      tags: [files]
+      operationId: listFiles
+      summary: List files, newest first (created_at desc, filename asc). All filters optional, combined with AND.
+      parameters:
+        - { $ref: '#/components/parameters/Limit' }
+        - { $ref: '#/components/parameters/Offset' }
+        - { name: batch_id, in: query, required: false, schema: { $ref: '../shared/common.schema.json#/$defs/Id' } }
+        - { name: tag, in: query, required: false, description: 'File has this tag (file tags only, not batch tags).', schema: { $ref: '../shared/common.schema.json#/$defs/Tag' } }
+        - { name: mime, in: query, required: false, schema: { $ref: '../shared/common.schema.json#/$defs/Mime' } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/FileList' } } } }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /files/{file_id}:
+    parameters: [{ $ref: '#/components/parameters/FileId' }]
+    get:
+      tags: [files]
+      operationId: getFile
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/File' } } } }
+        '404': { $ref: '#/components/responses/FileNotFound' }
+    patch:
+      tags: [files]
+      operationId: updateFile
+      summary: Replace file tags (sorted, deduplicated by the api).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FileUpdate' }
+            example: { tags: [contract, legal] }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/File' } } } }
+        '404': { $ref: '#/components/responses/FileNotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [files]
+      operationId: deleteFile
+      summary: Delete file row, its ingest runs + stage runs, its S3 upload; enqueue delete_points for each collection it was stored in. Artifacts are left in S3.
+      responses:
+        '204': { description: Deleted. }
+        '404': { $ref: '#/components/responses/FileNotFound' }
+  /files/{file_id}/content:
+    parameters: [{ $ref: '#/components/parameters/FileId' }]
+    get:
+      tags: [files]
+      operationId: getFileContent
+      summary: Original bytes (for image preview / download). Content-Type = file mime; Content-Disposition inline; filename.
+      responses:
+        '200':
+          description: File bytes.
+          content:
+            application/octet-stream: { schema: { type: string, format: binary } }
+        '404': { $ref: '#/components/responses/FileNotFound' }
+
+  /collections:
+    get:
+      tags: [collections]
+      operationId: listCollections
+      summary: All collections, name asc. No pagination (small).
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CollectionList' }
+              example:
+                items:
+                  - { id: 019a4b2c-1d00-7b00-8000-0000000000aa, name: default, qdrant_name: rf_019a4b2c1d007b0080000000000000aa, dense_model: bge-m3, dense_dims: 1024, sparse_model: Qdrant/bm25, created_at: '2026-11-01T18:22:05.123Z' }
+    post:
+      tags: [collections]
+      operationId: createCollection
+      summary: Create a collection row (R-012). The Qdrant collection is created lazily by the worker on first store.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CollectionCreate' }
+            example: { name: experiments, dense_model: nomic-embed-text, sparse_model: prithivida/Splade_PP_en_v1 }
+      responses:
+        '201': { description: Created., content: { application/json: { schema: { $ref: '#/components/schemas/Collection' } } } }
+        '409':
+          description: Name taken.
+          content:
+            application/json:
+              schema: { $ref: '../shared/common.schema.json#/$defs/Error' }
+              example: { error: { code: COLLECTION_NAME_TAKEN, message: A collection with this name already exists, details: { name: experiments } } }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /collections/{collection_id}:
+    parameters: [{ $ref: '#/components/parameters/CollectionId' }]
+    get:
+      tags: [collections]
+      operationId: getCollection
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Collection' } } } }
+        '404': { $ref: '#/components/responses/CollectionNotFound' }
+    delete:
+      tags: [collections]
+      operationId: deleteCollection
+      summary: Delete row + its ingest/query runs and stage runs, then enqueue drop_collection. Deleting the last collection is allowed; the default is re-created on next api start.
+      responses:
+        '204': { description: Deleted. }
+        '404': { $ref: '#/components/responses/CollectionNotFound' }
+
+  /ingest-runs:
+    get:
+      tags: [ingest]
+      operationId: listIngestRuns
+      summary: Ingest runs, newest first (created_at desc). Filters optional, AND.
+      parameters:
+        - { $ref: '#/components/parameters/Limit' }
+        - { $ref: '#/components/parameters/Offset' }
+        - { name: file_id, in: query, required: false, schema: { $ref: '../shared/common.schema.json#/$defs/Id' } }
+        - { name: collection_id, in: query, required: false, schema: { $ref: '../shared/common.schema.json#/$defs/Id' } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/IngestRunPage' } } } }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [ingest]
+      operationId: createIngestRun
+      summary: New ingest run of one file into one collection. Nothing is queued yet.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IngestRunCreate' }
+      responses:
+        '201': { description: Created., content: { application/json: { schema: { $ref: '#/components/schemas/IngestRun' } } } }
+        '404': { $ref: '#/components/responses/FileOrCollectionNotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /ingest-runs/{run_id}:
+    parameters: [{ $ref: '#/components/parameters/RunId' }]
+    get:
+      tags: [ingest]
+      operationId: getIngestRun
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/IngestRun' } } } }
+        '404': { $ref: '#/components/responses/RunNotFound' }
+  /ingest-runs/{run_id}/stages/parse:
+    parameters: [{ $ref: '#/components/parameters/RunId' }]
+    post:
+      tags: [ingest]
+      operationId: runParse
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ParseStageRequest' }, example: { params: { strategy: docling_layout, extract_tables: true, page_images: true } } } } }
+      responses:
+        '202': { $ref: '#/components/responses/StageQueued' }
+        '404': { $ref: '#/components/responses/RunNotFound' }
+        '409': { $ref: '#/components/responses/StageConflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /ingest-runs/{run_id}/stages/chunk:
+    parameters: [{ $ref: '#/components/parameters/RunId' }]
+    post:
+      tags: [ingest]
+      operationId: runChunk
+      description: Additional validation → 422 VALIDATION_ERROR when overlap ≥ length (fixed, sentence, recursive), text_overlap ≥ text_length (table) or min_sentences > max_sentences (semantic).
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ChunkStageRequest' }, example: { params: { strategy: semantic, breakpoint_percentile: 90, min_sentences: 2, max_sentences: 20 } } } } }
+      responses:
+        '202': { $ref: '#/components/responses/StageQueued' }
+        '404': { $ref: '#/components/responses/RunNotFound' }
+        '409': { $ref: '#/components/responses/StageConflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /ingest-runs/{run_id}/stages/embed:
+    parameters: [{ $ref: '#/components/parameters/RunId' }]
+    post:
+      tags: [ingest]
+      operationId: runEmbed
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/EmbedStageRequest' }, example: { params: { batch_size: 16 } } } } }
+      responses:
+        '202': { $ref: '#/components/responses/StageQueued' }
+        '404': { $ref: '#/components/responses/RunNotFound' }
+        '409': { $ref: '#/components/responses/StageConflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /ingest-runs/{run_id}/stages/store:
+    parameters: [{ $ref: '#/components/parameters/RunId' }]
+    post:
+      tags: [ingest]
+      operationId: runStore
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/StoreStageRequest' }, example: { params: {} } } } }
+      responses:
+        '202': { $ref: '#/components/responses/StageQueued' }
+        '404': { $ref: '#/components/responses/RunNotFound' }
+        '409': { $ref: '#/components/responses/StageConflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /ingest-runs/{run_id}/run-all:
+    parameters: [{ $ref: '#/components/parameters/RunId' }]
+    post:
+      tags: [ingest]
+      operationId: runAllIngest
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/IngestRunAllRequest' } } } }
+      responses:
+        '200': { description: 'Nothing to do (all stages done, from_stage null).', content: { application/json: { schema: { $ref: '#/components/schemas/IngestRun' } } } }
+        '202': { description: 'Plan stored, first stage queued.', content: { application/json: { schema: { $ref: '#/components/schemas/IngestRun' } } } }
+        '404': { $ref: '#/components/responses/RunNotFound' }
+        '409': { $ref: '#/components/responses/StageConflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /query-runs:
+    get:
+      tags: [query]
+      operationId: listQueryRuns
+      summary: Query runs, newest first (created_at desc).
+      parameters:
+        - { $ref: '#/components/parameters/Limit' }
+        - { $ref: '#/components/parameters/Offset' }
+        - { name: collection_id, in: query, required: false, schema: { $ref: '../shared/common.schema.json#/$defs/Id' } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/QueryRunPage' } } } }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [query]
+      operationId: createQueryRun
+      summary: New question against a collection. Nothing queued yet.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/QueryRunCreate' }
+            example: { collection_id: 019a4b2c-1d00-7b00-8000-0000000000aa, question: 'How did revenue change in Q3?' }
+      responses:
+        '201': { description: Created., content: { application/json: { schema: { $ref: '#/components/schemas/QueryRun' } } } }
+        '404': { $ref: '#/components/responses/CollectionNotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /query-runs/{run_id}:
+    parameters: [{ $ref: '#/components/parameters/RunId' }]
+    get:
+      tags: [query]
+      operationId: getQueryRun
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/QueryRun' } } } }
+        '404': { $ref: '#/components/responses/RunNotFound' }
+  /query-runs/{run_id}/stages/transform:
+    parameters: [{ $ref: '#/components/parameters/RunId' }]
+    post:
+      tags: [query]
+      operationId: runTransform
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TransformStageRequest' }, example: { params: { strategy: hyde, num_queries: 3 } } } } }
+      responses:
+        '202': { $ref: '#/components/responses/StageQueued' }
+        '404': { $ref: '#/components/responses/RunNotFound' }
+        '409': { $ref: '#/components/responses/StageConflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /query-runs/{run_id}/stages/retrieve:
+    parameters: [{ $ref: '#/components/parameters/RunId' }]
+    post:
+      tags: [query]
+      operationId: runRetrieve
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RetrieveStageRequest' }, example: { params: { mode: hybrid, top_k: 10, rrf_k: 60, filters: {} } } } } }
+      responses:
+        '202': { $ref: '#/components/responses/StageQueued' }
+        '404': { $ref: '#/components/responses/RunNotFound' }
+        '409': { $ref: '#/components/responses/StageConflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /query-runs/{run_id}/stages/rerank:
+    parameters: [{ $ref: '#/components/parameters/RunId' }]
+    post:
+      tags: [query]
+      operationId: runRerank
+      description: The job's model = settings.reranker_model.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RerankStageRequest' }, example: { params: { enabled: true, top_n: 5 } } } } }
+      responses:
+        '202': { $ref: '#/components/responses/StageQueued' }
+        '404': { $ref: '#/components/responses/RunNotFound' }
+        '409': { $ref: '#/components/responses/StageConflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /query-runs/{run_id}/stages/generate:
+    parameters: [{ $ref: '#/components/parameters/RunId' }]
+    post:
+      tags: [query]
+      operationId: runGenerate
+      description: The job's chat config = active provider from settings (with its stored api key).
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/GenerateStageRequest' }, example: { params: { max_context_tokens: 4000, temperature: 0.2, max_answer_tokens: 800 } } } } }
+      responses:
+        '202': { $ref: '#/components/responses/StageQueued' }
+        '404': { $ref: '#/components/responses/RunNotFound' }
+        '409': { $ref: '#/components/responses/StageConflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /query-runs/{run_id}/run-all:
+    parameters: [{ $ref: '#/components/parameters/RunId' }]
+    post:
+      tags: [query]
+      operationId: runAllQuery
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/QueryRunAllRequest' } } } }
+      responses:
+        '200': { description: Nothing to do., content: { application/json: { schema: { $ref: '#/components/schemas/QueryRun' } } } }
+        '202': { description: 'Plan stored, first stage queued.', content: { application/json: { schema: { $ref: '#/components/schemas/QueryRun' } } } }
+        '404': { $ref: '#/components/responses/RunNotFound' }
+        '409': { $ref: '#/components/responses/StageConflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /stage-runs:
+    get:
+      tags: [artifacts]
+      operationId: listStageRuns
+      summary: All versions of one stage of one run, version desc (for the version picker).
+      parameters:
+        - { name: run_id, in: query, required: true, schema: { $ref: '../shared/common.schema.json#/$defs/Id' } }
+        - { name: stage, in: query, required: true, schema: { $ref: '../shared/common.schema.json#/$defs/Stage' } }
+      responses:
+        '200': { description: OK (empty items for unknown run)., content: { application/json: { schema: { $ref: '#/components/schemas/StageRunList' } } } }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /stage-runs/{stage_run_id}:
+    parameters: [{ $ref: '#/components/parameters/StageRunId' }]
+    get:
+      tags: [artifacts]
+      operationId: getStageRun
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/StageRun' } } } }
+        '404': { $ref: '#/components/responses/StageRunNotFound' }
+  /stage-runs/{stage_run_id}/artifact:
+    parameters: [{ $ref: '#/components/parameters/StageRunId' }]
+    get:
+      tags: [artifacts]
+      operationId: getStageArtifact
+      summary: The artifact JSON exactly as the worker wrote it (shape by stage). 404 ARTIFACT_NOT_FOUND when artifact_key is null or the object is missing.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - { $ref: '#/components/schemas/ParseArtifact' }
+                  - { $ref: '#/components/schemas/ChunkArtifact' }
+                  - { $ref: '#/components/schemas/EmbedArtifact' }
+                  - { $ref: '#/components/schemas/StoreArtifact' }
+                  - { $ref: '#/components/schemas/TransformArtifact' }
+                  - { $ref: '#/components/schemas/RetrieveArtifact' }
+                  - { $ref: '#/components/schemas/RerankArtifact' }
+                  - { $ref: '#/components/schemas/GenerateArtifact' }
+                discriminator: { propertyName: stage }
+        '404': { $ref: '#/components/responses/StageRunOrArtifactNotFound' }
+  /stage-runs/{stage_run_id}/pages/{page_no}:
+    parameters:
+      - { $ref: '#/components/parameters/StageRunId' }
+      - { name: page_no, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    get:
+      tags: [artifacts]
+      operationId: getPageImage
+      summary: Page PNG of a parse stage run (pages[].image_key). Cache-Control max-age=31536000, immutable.
+      responses:
+        '200': { description: PNG., content: { image/png: { schema: { type: string, format: binary } } } }
+        '404': { $ref: '#/components/responses/PageNotFound' }
+
+  /events:
+    get:
+      tags: [system]
+      operationId: streamEvents
+      summary: SSE stream of every event on Redis channel events:{run_id} (R-014).
+      description: |
+        Each message: `event: <type>` + `data: <event JSON>` (contracts/events/*.schema.json; types stage.started, stage.progress,
+        stage.completed, stage.failed, generate.token, run.updated). Comment ping `: ping` every 15 s. No replay, no Last-Event-ID.
+        Response headers: Cache-Control no-cache, X-Accel-Buffering no.
+      parameters:
+        - { name: run_id, in: query, required: true, schema: { $ref: '../shared/common.schema.json#/$defs/Id' } }
+      responses:
+        '200': { description: Event stream., content: { text/event-stream: { schema: { type: string } } } }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /collections/{collection_id}/qdrant:
+    parameters: [{ $ref: '#/components/parameters/CollectionId' }]
+    get:
+      tags: [qdrant]
+      operationId: getQdrantInfo
+      summary: Qdrant collection info for the browser (R-011). exists=false (other fields null/empty) before the first store.
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/QdrantInfo' } } } }
+        '404': { $ref: '#/components/responses/CollectionNotFound' }
+        '503': { $ref: '#/components/responses/QdrantError' }
+  /collections/{collection_id}/qdrant/scroll:
+    parameters: [{ $ref: '#/components/parameters/CollectionId' }]
+    post:
+      tags: [qdrant]
+      operationId: scrollQdrantPoints
+      summary: Page through points (Qdrant scroll, order by point id). Filter keys map to meta.<key>.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ScrollRequest' }
+            example: { filter: { must: [{ key: tags, match: { any: [finance] } }] }, limit: 20, offset: null, with_vectors: false }
+      responses:
+        '200': { description: OK (empty when the Qdrant collection does not exist yet)., content: { application/json: { schema: { $ref: '#/components/schemas/ScrollResponse' } } } }
+        '404': { $ref: '#/components/responses/CollectionNotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503': { $ref: '#/components/responses/QdrantError' }
+  /collections/{collection_id}/qdrant/count:
+    parameters: [{ $ref: '#/components/parameters/CollectionId' }]
+    post:
+      tags: [qdrant]
+      operationId: countQdrantPoints
+      summary: Exact count of points matching the filter (0 when collection does not exist).
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CountRequest' } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/CountResponse' }, example: { count: 42 } } } }
+        '404': { $ref: '#/components/responses/CollectionNotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503': { $ref: '#/components/responses/QdrantError' }
+  /collections/{collection_id}/qdrant/facets/{key}:
+    parameters:
+      - { $ref: '#/components/parameters/CollectionId' }
+      - { name: key, in: path, required: true, schema: { type: string, enum: [file_id, batch_id, tags, mime, element_type, chunk_strategy, parse_strategy] } }
+    get:
+      tags: [qdrant]
+      operationId: getQdrantFacet
+      summary: Distinct values + counts of a keyword payload field (Qdrant facet, limit 100, count desc), for the filter builder.
+      responses:
+        '200': { description: OK (empty when the collection does not exist)., content: { application/json: { schema: { $ref: '#/components/schemas/FacetResponse' }, example: { key: tags, values: [{ value: finance, count: 40 }, { value: q3, count: 12 }] } } } }
+        '404': { $ref: '#/components/responses/CollectionNotFound' }
+        '503': { $ref: '#/components/responses/QdrantError' }
+  /collections/{collection_id}/qdrant/points/{point_id}:
+    parameters:
+      - { $ref: '#/components/parameters/CollectionId' }
+      - { name: point_id, in: path, required: true, schema: { $ref: '../shared/common.schema.json#/$defs/PointId' } }
+    get:
+      tags: [qdrant]
+      operationId: getQdrantPoint
+      summary: One point with full vectors and payload (raw JSON view).
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/QdrantPoint' } } } }
+        '404': { $ref: '#/components/responses/CollectionOrPointNotFound' }
+        '503': { $ref: '#/components/responses/QdrantError' }
+
+  /settings:
+    get:
+      tags: [settings]
+      operationId: getSettings
+      summary: Current settings, API keys masked (R-020).
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Settings' } } } }
+    put:
+      tags: [settings]
+      operationId: putSettings
+      summary: Replace settings. api_key null = keep stored key, "" = delete stored key, other = new key.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SettingsUpdate' }
+            example:
+              chat_provider: anthropic
+              ollama: { url: 'http://host.docker.internal:11434', chat_model: 'qwen3:8b' }
+              anthropic: { model: claude-sonnet-5-5, api_key: sk-ant-example }
+              openai_compatible: { base_url: 'http://host.docker.internal:1234/v1', model: local-model, api_key: null }
+              reranker_model: Xenova/ms-marco-MiniLM-L-6-v2
+      responses:
+        '200': { description: Saved., content: { application/json: { schema: { $ref: '#/components/schemas/Settings' } } } }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /settings/test-connection:
+    post:
+      tags: [settings]
+      operationId: testConnection
+      summary: Probe a provider with the stored settings (or the given unsaved ones). Always 200; timeout 10 s.
+      description: |
+        ollama: GET {url}/api/tags → ok, models = names. anthropic: GET https://api.anthropic.com/v1/models with x-api-key → ok, models = ids.
+        openai_compatible: GET {base_url}/models with Bearer key → ok, models = data[].id.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TestConnectionRequest' }
+            example: { target: ollama }
+      responses:
+        '200':
+          description: Result.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TestConnectionResult' }
+              example: { target: ollama, ok: true, latency_ms: 12, detail: null, models: ['qwen3:8b', 'bge-m3:latest'] }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /models:
+    get:
+      tags: [settings]
+      operationId: getModelCatalog
+      summary: Allowed models + which Ollama models are installed (ollama_reachable=false and installed=false everywhere when Ollama is down).
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ModelCatalog' } } } }
+  /pipeline-graphs:
+    get:
+      tags: [system]
+      operationId: listPipelineGraphs
+      summary: All reported graphs, ordered by stage pipeline order then variant asc (R-019).
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/PipelineGraphList' } } } }
+  /pipeline-graphs/{stage}/{variant}:
+    parameters:
+      - { name: stage, in: path, required: true, schema: { $ref: '../shared/common.schema.json#/$defs/Stage' } }
+      - { name: variant, in: path, required: true, schema: { type: string, pattern: '^[a-z_]{1,40}$' } }
+    get:
+      tags: [system]
+      operationId: getPipelineGraph
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/PipelineGraph' } } } }
+        '404': { $ref: '#/components/responses/PipelineGraphNotFound' }
+
+components:
+  parameters:
+    Limit: { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+    Offset: { name: offset, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
+    BatchId: { name: batch_id, in: path, required: true, schema: { $ref: '../shared/common.schema.json#/$defs/Id' } }
+    FileId: { name: file_id, in: path, required: true, schema: { $ref: '../shared/common.schema.json#/$defs/Id' } }
+    CollectionId: { name: collection_id, in: path, required: true, schema: { $ref: '../shared/common.schema.json#/$defs/Id' } }
+    RunId: { name: run_id, in: path, required: true, schema: { $ref: '../shared/common.schema.json#/$defs/Id' } }
+    StageRunId: { name: stage_run_id, in: path, required: true, schema: { $ref: '../shared/common.schema.json#/$defs/Id' } }
+
+  schemas:
+    ParseArtifact: { $ref: '../artifacts/parse.schema.json' }
+    ChunkArtifact: { $ref: '../artifacts/chunk.schema.json' }
+    EmbedArtifact: { $ref: '../artifacts/embed.schema.json' }
+    StoreArtifact: { $ref: '../artifacts/store.schema.json' }
+    TransformArtifact: { $ref: '../artifacts/transform.schema.json' }
+    RetrieveArtifact: { $ref: '../artifacts/retrieve.schema.json' }
+    RerankArtifact: { $ref: '../artifacts/rerank.schema.json' }
+    GenerateArtifact: { $ref: '../artifacts/generate.schema.json' }
+    PipelineGraph: { $ref: '../shared/pipeline-graph.schema.json' }
+    QdrantPayload: { $ref: '../qdrant/payload.schema.json' }
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status, service, version]
+      properties:
+        status: { const: ok }
+        service: { const: api }
+        version: { type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$' }
+    Status:
+      type: object
+      additionalProperties: false
+      required: [components]
+      properties:
+        components:
+          type: array
+          minItems: 8
+          maxItems: 8
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, ok, latency_ms, detail]
+            properties:
+              name: { type: string, enum: [api, worker-ingest, worker-query, postgres, redis, qdrant, s3, ollama] }
+              ok: { type: boolean }
+              latency_ms: { type: integer, minimum: 0 }
+              detail: { type: ['string', 'null'], maxLength: 500, description: Error text when ok=false. }
+    Batch:
+      type: object
+      additionalProperties: false
+      required: [id, name, tags, file_count, created_at]
+      properties:
+        id: { $ref: '../shared/common.schema.json#/$defs/Id' }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        tags: { $ref: '../shared/common.schema.json#/$defs/Tags' }
+        file_count: { type: integer, minimum: 0 }
+        created_at: { $ref: '../shared/common.schema.json#/$defs/Timestamp' }
+    BatchUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        tags: { $ref: '../shared/common.schema.json#/$defs/Tags' }
+    File:
+      type: object
+      additionalProperties: false
+      required: [id, batch_id, filename, mime, size_bytes, sha256, tags, created_at]
+      properties:
+        id: { $ref: '../shared/common.schema.json#/$defs/Id' }
+        batch_id: { $ref: '../shared/common.schema.json#/$defs/Id' }
+        filename: { type: string, minLength: 1, maxLength: 255 }
+        mime: { $ref: '../shared/common.schema.json#/$defs/Mime' }
+        size_bytes: { type: integer, minimum: 1 }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        tags: { $ref: '../shared/common.schema.json#/$defs/Tags' }
+        created_at: { $ref: '../shared/common.schema.json#/$defs/Timestamp' }
+    FileUpdate:
+      type: object
+      additionalProperties: false
+      required: [tags]
+      properties:
+        tags: { $ref: '../shared/common.schema.json#/$defs/Tags' }
+    BatchWithFiles:
+      type: object
+      additionalProperties: false
+      required: [batch, files]
+      properties:
+        batch: { $ref: '#/components/schemas/Batch' }
+        files: { type: array, items: { $ref: '#/components/schemas/File' }, description: Upload order. }
+    BatchList:
+      type: object
+      additionalProperties: false
+      required: [items, page]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Batch' } }
+        page: { $ref: '../shared/common.schema.json#/$defs/PageInfo' }
+    FileList:
+      type: object
+      additionalProperties: false
+      required: [items, page]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/File' } }
+        page: { $ref: '../shared/common.schema.json#/$defs/PageInfo' }
+    Collection:
+      type: object
+      additionalProperties: false
+      required: [id, name, qdrant_name, dense_model, dense_dims, sparse_model, created_at]
+      properties:
+        id: { $ref: '../shared/common.schema.json#/$defs/Id' }
+        name: { type: string, minLength: 1, maxLength: 64, pattern: '^[a-z0-9][a-z0-9_-]*$' }
+        qdrant_name: { type: string, pattern: '^rf_[0-9a-f]{32}$', description: 'rf_ + id without dashes.' }
+        dense_model: { $ref: '../shared/common.schema.json#/$defs/DenseModel' }
+        dense_dims: { type: integer, enum: [384, 768, 1024] }
+        sparse_model: { $ref: '../shared/common.schema.json#/$defs/SparseModel' }
+        created_at: { $ref: '../shared/common.schema.json#/$defs/Timestamp' }
+    CollectionCreate:
+      type: object
+      additionalProperties: false
+      required: [name, dense_model, sparse_model]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 64, pattern: '^[a-z0-9][a-z0-9_-]*$' }
+        dense_model: { $ref: '../shared/common.schema.json#/$defs/DenseModel' }
+        sparse_model: { $ref: '../shared/common.schema.json#/$defs/SparseModel' }
+    CollectionList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Collection' } }
+    StageRun:
+      type: object
+      additionalProperties: false
+      required: [id, run_id, run_kind, stage, version, params, status, artifact_key, summary, error, created_at, started_at, finished_at]
+      description: params shape = the stage's params schema (ParseParams for parse, …).
+      properties:
+        id: { $ref: '../shared/common.schema.json#/$defs/Id' }
+        run_id: { $ref: '../shared/common.schema.json#/$defs/Id' }
+        run_kind: { $ref: '../shared/common.schema.json#/$defs/RunKind' }
+        stage: { $ref: '../shared/common.schema.json#/$defs/Stage' }
+        version: { type: integer, minimum: 1 }
+        params:
+          anyOf:
+            - { $ref: '../shared/common.schema.json#/$defs/ParseParams' }
+            - { $ref: '../shared/common.schema.json#/$defs/ChunkParams' }
+            - { $ref: '../shared/common.schema.json#/$defs/EmbedParams' }
+            - { $ref: '../shared/common.schema.json#/$defs/StoreParams' }
+            - { $ref: '../shared/common.schema.json#/$defs/TransformParams' }
+            - { $ref: '../shared/common.schema.json#/$defs/RetrieveParams' }
+            - { $ref: '../shared/common.schema.json#/$defs/RerankParams' }
+            - { $ref: '../shared/common.schema.json#/$defs/GenerateParams' }
+        status: { $ref: '../shared/common.schema.json#/$defs/StageStatus' }
+        artifact_key: { oneOf: [{ $ref: '../shared/common.schema.json#/$defs/S3Key' }, { type: 'null' }] }
+        summary: { oneOf: [{ $ref: '../shared/summary.schema.json' }, { type: 'null' }] }
+        error: { oneOf: [{ $ref: '../shared/common.schema.json#/$defs/ErrorBody' }, { type: 'null' }] }
+        created_at: { $ref: '../shared/common.schema.json#/$defs/Timestamp' }
+        started_at: { oneOf: [{ $ref: '../shared/common.schema.json#/$defs/Timestamp' }, { type: 'null' }] }
+        finished_at: { oneOf: [{ $ref: '../shared/common.schema.json#/$defs/Timestamp' }, { type: 'null' }] }
+    StageRunList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/StageRun' } }
+    NullableStageRun:
+      oneOf: [{ $ref: '#/components/schemas/StageRun' }, { type: 'null' }]
+    IngestRunCreate:
+      type: object
+      additionalProperties: false
+      required: [file_id, collection_id]
+      properties:
+        file_id: { $ref: '../shared/common.schema.json#/$defs/Id' }
+        collection_id: { $ref: '../shared/common.schema.json#/$defs/Id' }
+    IngestRun:
+      type: object
+      additionalProperties: false
+      required: [id, file, collection_id, created_at, run_all_pending, stages]
+      properties:
+        id: { $ref: '../shared/common.schema.json#/$defs/Id' }
+        file: { $ref: '#/components/schemas/File' }
+        collection_id: { $ref: '../shared/common.schema.json#/$defs/Id' }
+        created_at: { $ref: '../shared/common.schema.json#/$defs/Timestamp' }
+        run_all_pending: { type: array, items: { $ref: '../shared/common.schema.json#/$defs/IngestStage' }, description: Stages of the run-all plan not yet started (empty = no plan). }
+        stages:
+          type: object
+          additionalProperties: false
+          required: [parse, chunk, embed, store]
+          description: Latest row of each stage (null = never run).
+          properties:
+            parse: { $ref: '#/components/schemas/NullableStageRun' }
+            chunk: { $ref: '#/components/schemas/NullableStageRun' }
+            embed: { $ref: '#/components/schemas/NullableStageRun' }
+            store: { $ref: '#/components/schemas/NullableStageRun' }
+    IngestRunPage:
+      type: object
+      additionalProperties: false
+      required: [items, page]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/IngestRun' } }
+        page: { $ref: '../shared/common.schema.json#/$defs/PageInfo' }
+    IngestRunList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/IngestRun' } }
+    IngestParamsAll:
+      type: object
+      additionalProperties: false
+      required: [parse, chunk, embed, store]
+      properties:
+        parse: { $ref: '../shared/common.schema.json#/$defs/ParseParams' }
+        chunk: { $ref: '../shared/common.schema.json#/$defs/ChunkParams' }
+        embed: { $ref: '../shared/common.schema.json#/$defs/EmbedParams' }
+        store: { $ref: '../shared/common.schema.json#/$defs/StoreParams' }
+    IngestRunAllRequest:
+      type: object
+      additionalProperties: false
+      required: [from_stage, params]
+      properties:
+        from_stage: { oneOf: [{ $ref: '../shared/common.schema.json#/$defs/IngestStage' }, { type: 'null' }] }
+        params: { $ref: '#/components/schemas/IngestParamsAll' }
+    BatchIngestRequest:
+      type: object
+      additionalProperties: false
+      required: [collection_id, params]
+      properties:
+        collection_id: { $ref: '../shared/common.schema.json#/$defs/Id' }
+        params: { $ref: '#/components/schemas/IngestParamsAll' }
+    ParseStageRequest: { type: object, additionalProperties: false, required: [params], properties: { params: { $ref: '../shared/common.schema.json#/$defs/ParseParams' } } }
+    ChunkStageRequest: { type: object, additionalProperties: false, required: [params], properties: { params: { $ref: '../shared/common.schema.json#/$defs/ChunkParams' } } }
+    EmbedStageRequest: { type: object, additionalProperties: false, required: [params], properties: { params: { $ref: '../shared/common.schema.json#/$defs/EmbedParams' } } }
+    StoreStageRequest: { type: object, additionalProperties: false, required: [params], properties: { params: { $ref: '../shared/common.schema.json#/$defs/StoreParams' } } }
+    TransformStageRequest: { type: object, additionalProperties: false, required: [params], properties: { params: { $ref: '../shared/common.schema.json#/$defs/TransformParams' } } }
+    RetrieveStageRequest: { type: object, additionalProperties: false, required: [params], properties: { params: { $ref: '../shared/common.schema.json#/$defs/RetrieveParams' } } }
+    RerankStageRequest: { type: object, additionalProperties: false, required: [params], properties: { params: { $ref: '../shared/common.schema.json#/$defs/RerankParams' } } }
+    GenerateStageRequest: { type: object, additionalProperties: false, required: [params], properties: { params: { $ref: '../shared/common.schema.json#/$defs/GenerateParams' } } }
+    QueryRunCreate:
+      type: object
+      additionalProperties: false
+      required: [collection_id, question]
+      properties:
+        collection_id: { $ref: '../shared/common.schema.json#/$defs/Id' }
+        question: { type: string, minLength: 1, maxLength: 2000 }
+    QueryRun:
+      type: object
+      additionalProperties: false
+      required: [id, collection_id, question, created_at, run_all_pending, stages]
+      properties:
+        id: { $ref: '../shared/common.schema.json#/$defs/Id' }
+        collection_id: { $ref: '../shared/common.schema.json#/$defs/Id' }
+        question: { type: string, minLength: 1, maxLength: 2000 }
+        created_at: { $ref: '../shared/common.schema.json#/$defs/Timestamp' }
+        run_all_pending: { type: array, items: { $ref: '../shared/common.schema.json#/$defs/QueryStage' } }
+        stages:
+          type: object
+          additionalProperties: false
+          required: [transform, retrieve, rerank, generate]
+          properties:
+            transform: { $ref: '#/components/schemas/NullableStageRun' }
+            retrieve: { $ref: '#/components/schemas/NullableStageRun' }
+            rerank: { $ref: '#/components/schemas/NullableStageRun' }
+            generate: { $ref: '#/components/schemas/NullableStageRun' }
+    QueryRunPage:
+      type: object
+      additionalProperties: false
+      required: [items, page]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/QueryRun' } }
+        page: { $ref: '../shared/common.schema.json#/$defs/PageInfo' }
+    QueryRunAllRequest:
+      type: object
+      additionalProperties: false
+      required: [from_stage, params]
+      properties:
+        from_stage: { oneOf: [{ $ref: '../shared/common.schema.json#/$defs/QueryStage' }, { type: 'null' }] }
+        params:
+          type: object
+          additionalProperties: false
+          required: [transform, retrieve, rerank, generate]
+          properties:
+            transform: { $ref: '../shared/common.schema.json#/$defs/TransformParams' }
+            retrieve: { $ref: '../shared/common.schema.json#/$defs/RetrieveParams' }
+            rerank: { $ref: '../shared/common.schema.json#/$defs/RerankParams' }
+            generate: { $ref: '../shared/common.schema.json#/$defs/GenerateParams' }
+    QdrantInfo:
+      type: object
+      additionalProperties: false
+      required: [qdrant_name, exists, status, points_count, dense, sparse, payload_indexes]
+      properties:
+        qdrant_name: { type: string, pattern: '^rf_[0-9a-f]{32}$' }
+        exists: { type: boolean }
+        status: { type: ['string', 'null'], enum: [green, yellow, grey, red, null] }
+        points_count: { type: ['integer', 'null'], minimum: 0 }
+        dense:
+          oneOf:
+            - { type: 'null' }
+            - type: object
+              additionalProperties: false
+              required: [name, size, distance]
+              properties:
+                name: { const: text-dense }
+                size: { type: integer, enum: [384, 768, 1024] }
+                distance: { type: string, enum: [Cosine, Dot, Euclid, Manhattan] }
+        sparse:
+          oneOf:
+            - { type: 'null' }
+            - type: object
+              additionalProperties: false
+              required: [name, modifier]
+              properties:
+                name: { const: text-sparse }
+                modifier: { type: string, enum: [idf, none] }
+        payload_indexes:
+          type: array
+          description: Sorted by key.
+          items:
+            type: object
+            additionalProperties: false
+            required: [key, type, points]
+            properties:
+              key: { type: string, description: 'e.g. meta.file_id' }
+              type: { type: string, enum: [keyword, integer, float, bool, datetime, text, uuid, geo] }
+              points: { type: integer, minimum: 0 }
+    ScrollRequest:
+      type: object
+      additionalProperties: false
+      required: [filter, limit, offset, with_vectors]
+      properties:
+        filter: { $ref: '../shared/common.schema.json#/$defs/PayloadFilter' }
+        limit: { type: integer, minimum: 1, maximum: 100 }
+        offset: { oneOf: [{ $ref: '../shared/common.schema.json#/$defs/PointId' }, { type: 'null' }], description: next_offset of the previous page; null = first page. }
+        with_vectors: { type: boolean }
+    ScrollResponse:
+      type: object
+      additionalProperties: false
+      required: [points, next_offset]
+      properties:
+        points: { type: array, items: { $ref: '#/components/schemas/QdrantPoint' } }
+        next_offset: { oneOf: [{ $ref: '../shared/common.schema.json#/$defs/PointId' }, { type: 'null' }] }
+    QdrantPoint:
+      type: object
+      additionalProperties: false
+      required: [id, payload, vectors]
+      properties:
+        id: { $ref: '../shared/common.schema.json#/$defs/PointId' }
+        payload: { $ref: '../qdrant/payload.schema.json' }
+        vectors:
+          description: null when with_vectors=false.
+          oneOf:
+            - { type: 'null' }
+            - type: object
+              additionalProperties: false
+              required: [dense, sparse]
+              properties:
+                dense: { type: array, items: { type: number } }
+                sparse:
+                  type: object
+                  additionalProperties: false
+                  required: [indices, values]
+                  properties:
+                    indices: { type: array, items: { type: integer, minimum: 0 } }
+                    values: { type: array, items: { type: number } }
+    CountRequest:
+      type: object
+      additionalProperties: false
+      required: [filter]
+      properties:
+        filter: { $ref: '../shared/common.schema.json#/$defs/PayloadFilter' }
+    CountResponse:
+      type: object
+      additionalProperties: false
+      required: [count]
+      properties:
+        count: { type: integer, minimum: 0 }
+    FacetResponse:
+      type: object
+      additionalProperties: false
+      required: [key, values]
+      properties:
+        key: { type: string }
+        values:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [value, count]
+            properties:
+              value: { type: string }
+              count: { type: integer, minimum: 0 }
+    Settings:
+      type: object
+      additionalProperties: false
+      required: [chat_provider, ollama, anthropic, openai_compatible, reranker_model, updated_at]
+      properties:
+        chat_provider: { $ref: '../shared/common.schema.json#/$defs/ChatProvider' }
+        ollama:
+          type: object
+          additionalProperties: false
+          required: [url, chat_model]
+          properties:
+            url: { $ref: '../shared/common.schema.json#/$defs/HttpUrl' }
+            chat_model: { type: string, minLength: 1, maxLength: 200 }
+        anthropic:
+          type: object
+          additionalProperties: false
+          required: [model, api_key_set, api_key_masked]
+          properties:
+            model: { type: string, minLength: 1, maxLength: 200 }
+            api_key_set: { type: boolean }
+            api_key_masked: { type: ['string', 'null'], description: 'First 3 + "…" + last 4 chars, e.g. "sk-…abcd"; null when not set.' }
+        openai_compatible:
+          type: object
+          additionalProperties: false
+          required: [base_url, model, api_key_set, api_key_masked]
+          properties:
+            base_url: { oneOf: [{ $ref: '../shared/common.schema.json#/$defs/HttpUrl' }, { type: 'null' }] }
+            model: { type: ['string', 'null'], maxLength: 200 }
+            api_key_set: { type: boolean }
+            api_key_masked: { type: ['string', 'null'] }
+        reranker_model: { $ref: '../shared/common.schema.json#/$defs/RerankModel' }
+        updated_at: { $ref: '../shared/common.schema.json#/$defs/Timestamp' }
+      example:
+        chat_provider: ollama
+        ollama: { url: 'http://host.docker.internal:11434', chat_model: 'qwen3:8b' }
+        anthropic: { model: claude-sonnet-5-5, api_key_set: false, api_key_masked: null }
+        openai_compatible: { base_url: null, model: null, api_key_set: false, api_key_masked: null }
+        reranker_model: Xenova/ms-marco-MiniLM-L-6-v2
+        updated_at: '2026-11-01T18:22:05.123Z'
+    SettingsUpdate:
+      type: object
+      additionalProperties: false
+      required: [chat_provider, ollama, anthropic, openai_compatible, reranker_model]
+      description: |
+        Extra rule (422 VALIDATION_ERROR): chat_provider anthropic requires a key (given or stored);
+        openai_compatible requires base_url and model (key optional).
+      properties:
+        chat_provider: { $ref: '../shared/common.schema.json#/$defs/ChatProvider' }
+        ollama:
+          type: object
+          additionalProperties: false
+          required: [url, chat_model]
+          properties:
+            url: { $ref: '../shared/common.schema.json#/$defs/HttpUrl' }
+            chat_model: { type: string, minLength: 1, maxLength: 200 }
+        anthropic:
+          type: object
+          additionalProperties: false
+          required: [model, api_key]
+          properties:
+            model: { type: string, minLength: 1, maxLength: 200 }
+            api_key: { type: ['string', 'null'], maxLength: 500 }
+        openai_compatible:
+          type: object
+          additionalProperties: false
+          required: [base_url, model, api_key]
+          properties:
+            base_url: { oneOf: [{ $ref: '../shared/common.schema.json#/$defs/HttpUrl' }, { type: 'null' }] }
+            model: { type: ['string', 'null'], maxLength: 200 }
+            api_key: { type: ['string', 'null'], maxLength: 500 }
+        reranker_model: { $ref: '../shared/common.schema.json#/$defs/RerankModel' }
+    TestConnectionRequest:
+      type: object
+      additionalProperties: false
+      required: [target]
+      properties:
+        target: { $ref: '../shared/common.schema.json#/$defs/ChatProvider' }
+        override:
+          description: Optional unsaved values to test instead of the stored ones (api_key null = use stored key).
+          oneOf:
+            - { type: 'null' }
+            - type: object
+              additionalProperties: false
+              required: [base_url, api_key]
+              properties:
+                base_url: { oneOf: [{ $ref: '../shared/common.schema.json#/$defs/HttpUrl' }, { type: 'null' }] }
+                api_key: { type: ['string', 'null'], maxLength: 500 }
+    TestConnectionResult:
+      type: object
+      additionalProperties: false
+      required: [target, ok, latency_ms, detail, models]
+      properties:
+        target: { $ref: '../shared/common.schema.json#/$defs/ChatProvider' }
+        ok: { type: boolean }
+        latency_ms: { type: integer, minimum: 0 }
+        detail: { type: ['string', 'null'], maxLength: 500 }
+        models: { type: array, items: { type: string }, maxItems: 500, description: Empty when ok=false. }
+    ModelCatalog:
+      type: object
+      additionalProperties: false
+      required: [ollama_reachable, ollama_installed, dense, sparse, rerank]
+      properties:
+        ollama_reachable: { type: boolean }
+        ollama_installed: { type: array, items: { type: string }, description: 'Names from /api/tags, e.g. "bge-m3:latest".' }
+        dense:
+          type: array
+          minItems: 4
+          maxItems: 4
+          items:
+            type: object
+            additionalProperties: false
+            required: [model, dims, max_tokens, installed]
+            properties:
+              model: { $ref: '../shared/common.schema.json#/$defs/DenseModel' }
+              dims: { type: integer, enum: [384, 768, 1024] }
+              max_tokens: { type: integer, minimum: 1 }
+              installed: { type: boolean, description: 'An installed name equals model or starts with model + ":".' }
+        sparse: { type: array, items: { $ref: '../shared/common.schema.json#/$defs/SparseModel' } }
+        rerank: { type: array, items: { $ref: '../shared/common.schema.json#/$defs/RerankModel' } }
+    PipelineGraphList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/PipelineGraph' } }
+
+  responses:
+    StageQueued:
+      description: Stage run queued.
+      content: { application/json: { schema: { $ref: '#/components/schemas/StageRun' } } }
+    ValidationError:
+      description: Invalid input.
+      content:
+        application/json:
+          schema: { $ref: '../shared/common.schema.json#/$defs/Error' }
+          example: { error: { code: VALIDATION_ERROR, message: Request body or parameters are invalid, details: { field: params.length } } }
+    EmptyUpload:
+      description: No files.
+      content: { application/json: { schema: { $ref: '../shared/common.schema.json#/$defs/Error' }, example: { error: { code: EMPTY_UPLOAD, message: No files in upload, details: {} } } } }
+    TooLarge:
+      description: FILE_TOO_LARGE or TOO_MANY_FILES.
+      content:
+        application/json:
+          schema: { $ref: '../shared/common.schema.json#/$defs/Error' }
+          examples:
+            file: { value: { error: { code: FILE_TOO_LARGE, message: File exceeds MAX_UPLOAD_MB, details: { filename: big.pdf, limit_mb: 50 } } } }
+            count: { value: { error: { code: TOO_MANY_FILES, message: Batch exceeds MAX_FILES_PER_BATCH, details: { limit: 20 } } } }
+    UnsupportedFileType:
+      description: Extension not supported.
+      content: { application/json: { schema: { $ref: '../shared/common.schema.json#/$defs/Error' }, example: { error: { code: UNSUPPORTED_FILE_TYPE, message: File type is not supported, details: { filename: notes.rtf } } } } }
+    S3Error:
+      description: Storage unavailable.
+      content: { application/json: { schema: { $ref: '../shared/common.schema.json#/$defs/Error' }, example: { error: { code: S3_ERROR, message: S3 request failed, details: {} } } } }
+    QdrantError:
+      description: Qdrant unavailable.
+      content: { application/json: { schema: { $ref: '../shared/common.schema.json#/$defs/Error' }, example: { error: { code: QDRANT_ERROR, message: Qdrant request failed, details: {} } } } }
+    BatchNotFound:
+      description: Unknown batch.
+      content: { application/json: { schema: { $ref: '../shared/common.schema.json#/$defs/Error' }, example: { error: { code: BATCH_NOT_FOUND, message: Batch not found, details: { batch_id: 019a4b2c-1e00-7b00-8000-000000000001 } } } } }
+    FileNotFound:
+      description: Unknown file.
+      content: { application/json: { schema: { $ref: '../shared/common.schema.json#/$defs/Error' }, example: { error: { code: FILE_NOT_FOUND, message: File not found, details: { file_id: 019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01 } } } } }
+    CollectionNotFound:
+      description: Unknown collection.
+      content: { application/json: { schema: { $ref: '../shared/common.schema.json#/$defs/Error' }, example: { error: { code: COLLECTION_NOT_FOUND, message: Collection not found, details: { collection_id: 019a4b2c-1d00-7b00-8000-0000000000aa } } } } }
+    BatchOrCollectionNotFound:
+      description: BATCH_NOT_FOUND or COLLECTION_NOT_FOUND.
+      content: { application/json: { schema: { $ref: '../shared/common.schema.json#/$defs/Error' }, example: { error: { code: COLLECTION_NOT_FOUND, message: Collection not found, details: { collection_id: 019a4b2c-1d00-7b00-8000-0000000000aa } } } } }
+    FileOrCollectionNotFound:
+      description: FILE_NOT_FOUND or COLLECTION_NOT_FOUND.
+      content: { application/json: { schema: { $ref: '../shared/common.schema.json#/$defs/Error' }, example: { error: { code: FILE_NOT_FOUND, message: File not found, details: { file_id: 019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01 } } } } }
+    CollectionOrPointNotFound:
+      description: COLLECTION_NOT_FOUND or POINT_NOT_FOUND.
+      content: { application/json: { schema: { $ref: '../shared/common.schema.json#/$defs/Error' }, example: { error: { code: POINT_NOT_FOUND, message: Qdrant point not found, details: { point_id: 5c9e2a5d0b8f4e1a9c7d3b2a1f0e9d8c } } } } }
+    RunNotFound:
+      description: Unknown run (or run of the other kind).
+      content: { application/json: { schema: { $ref: '../shared/common.schema.json#/$defs/Error' }, example: { error: { code: RUN_NOT_FOUND, message: Ingest or query run not found, details: { run_id: 019a4b2c-2000-7c00-9000-000000000002 } } } } }
+    StageRunNotFound:
+      description: Unknown stage run.
+      content: { application/json: { schema: { $ref: '../shared/common.schema.json#/$defs/Error' }, example: { error: { code: STAGE_RUN_NOT_FOUND, message: Stage run not found, details: { stage_run_id: 019a4b2c-2100-7c00-9000-000000000003 } } } } }
+    StageRunOrArtifactNotFound:
+      description: STAGE_RUN_NOT_FOUND or ARTIFACT_NOT_FOUND.
+      content: { application/json: { schema: { $ref: '../shared/common.schema.json#/$defs/Error' }, example: { error: { code: ARTIFACT_NOT_FOUND, message: Stage artifact not found, details: { stage_run_id: 019a4b2c-2100-7c00-9000-000000000003 } } } } }
+    PageNotFound:
+      description: STAGE_RUN_NOT_FOUND or PAGE_NOT_FOUND (not a parse run, no such page, or no image).
+      content: { application/json: { schema: { $ref: '../shared/common.schema.json#/$defs/Error' }, example: { error: { code: PAGE_NOT_FOUND, message: Page image not found, details: { page_no: 3 } } } } }
+    PipelineGraphNotFound:
+      description: Not reported yet.
+      content: { application/json: { schema: { $ref: '../shared/common.schema.json#/$defs/Error' }, example: { error: { code: PIPELINE_GRAPH_NOT_FOUND, message: No pipeline graph reported for this stage yet, details: { stage: chunk, variant: fixed } } } } }
+    StageConflict:
+      description: STAGE_ALREADY_RUNNING or STAGE_PREREQUISITE_MISSING.
+      content:
+        application/json:
+          schema: { $ref: '../shared/common.schema.json#/$defs/Error' }
+          examples:
+            running: { value: { error: { code: STAGE_ALREADY_RUNNING, message: This stage is already queued or running for this run, details: { stage: chunk } } } }
+            prerequisite: { value: { error: { code: STAGE_PREREQUISITE_MISSING, message: The previous stage has no done version yet, details: { stage: embed, missing: chunk } } } }

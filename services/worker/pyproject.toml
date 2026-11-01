@@ -1,0 +1,86 @@
+[project]
+name = "rag-worker"
+version = "1.0.0"
+description = "rag-fun Haystack pipelines (arq worker)"
+requires-python = "==3.12.*"
+dependencies = [
+    "haystack-ai==3.4.1",
+    "qdrant-haystack==13.1.0",
+    "ollama-haystack==7.0.2",
+    "anthropic-haystack==8.0.1",
+    "fastembed-haystack==3.0.0",
+    "fastembed==0.9.1",
+    "docling[easyocr]==2.145.0",
+    "docling-haystack==3.0.0",
+    "pypdf==6.21.4",
+    "nltk==3.10.4",
+    "tokenizers==0.23.3",
+    "numpy==2.5.4",
+    "scikit-learn==1.9.1",
+    "umap-learn==0.5.12",
+    "qdrant-client==1.20.0",
+    "arq==0.28.0",
+    "redis==5.3.1",
+    "aioboto3==15.5.0",
+    "httpx==0.28.1",
+    "pydantic==2.14.2",
+    "pydantic-settings==2.16.2",
+    "structlog==26.1.0",
+    "uuid-utils==1.2.0",
+    "torch==2.15.0",
+    "torchvision==0.29.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.2.0",
+    "pytest-asyncio==1.4.1",
+    "ruff==0.17.3",
+    "mypy==2.4.1",
+    "respx==0.23.1",
+    "jsonschema==4.26.0",
+    "pyyaml==6.0.3",
+]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "rag_worker"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["src/rag_worker/contracts_gen"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "ASYNC"]
+ignore = ["E501"]  # formatter enforces width; long docstrings are allowed
+
+[tool.mypy]
+python_version = "3.12"
+disallow_untyped_defs = true
+ignore_missing_imports = true
+exclude = ["src/rag_worker/contracts_gen/"]
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = "rag_worker.contracts_gen.*"
+ignore_errors = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider"

@@ -1,0 +1,15 @@
+# plan/services/integration.yaml — cross-service acceptance tests (tests/e2e) against the full app
+# (docker-compose.yml + docker-compose.e2e.yml: fake models, no host ports, project ragfun-e2e).
+name: integration
+path: tests/e2e
+language: python
+commands:
+  setup: docker compose -p ragfun-e2e -f docker-compose.yml -f docker-compose.e2e.yml --profile e2e build
+  build: docker compose -p ragfun-e2e -f docker-compose.yml -f docker-compose.e2e.yml up -d --build --wait
+  lint:  docker compose -p ragfun-e2e -f docker-compose.yml -f docker-compose.e2e.yml --profile e2e run --rm --no-deps e2e ruff check --select E,F,I --ignore E501 .
+  test:  docker compose -p ragfun-e2e -f docker-compose.yml -f docker-compose.e2e.yml up -d --build --wait && docker compose -p ragfun-e2e -f docker-compose.yml -f docker-compose.e2e.yml --profile e2e run --rm e2e pytest -q
+  # {files} = paths relative to tests/e2e
+  test_files: docker compose -p ragfun-e2e -f docker-compose.yml -f docker-compose.e2e.yml up -d --build --wait && docker compose -p ragfun-e2e -f docker-compose.yml -f docker-compose.e2e.yml --profile e2e run --rm e2e pytest -q {files}
+baseline_tests:
+  - tests/e2e/test_smoke.py
+regression: [build, lint, baseline_tests, done_tests]

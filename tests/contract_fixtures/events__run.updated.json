@@ -1,0 +1,7 @@
+{
+  "type": "run.updated",
+  "run_id": "019a4b2c-2000-7c00-9000-000000000002",
+  "run_kind": "ingest",
+  "reason": "stage_queued",
+  "ts": "2026-11-01T18:22:05.123Z"
+}

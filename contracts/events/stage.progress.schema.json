@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/events/stage.progress.schema.json",
+  "title": "Event stage.progress",
+  "description": "Producer: worker. Transport: Redis pub/sub channel 'events:{run_id}', message = this JSON (UTF-8). Consumer: api, which relays it unchanged as an SSE message with 'event: stage.progress' and 'data: <json>' on GET /api/v1/events?run_id=\u2026; consumer of that: web. Delivery: at-most-once, no replay \u2014 clients refetch GET /stage-runs/{id} on (re)connect. Optional, at most 5 per second per stage run. done \u2264 total.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type",
+    "run_id",
+    "stage_run_id",
+    "stage",
+    "version",
+    "ts",
+    "done",
+    "total",
+    "message"
+  ],
+  "properties": {
+    "type": {
+      "const": "stage.progress"
+    },
+    "run_id": {
+      "$ref": "../shared/common.schema.json#/$defs/Id"
+    },
+    "stage_run_id": {
+      "$ref": "../shared/common.schema.json#/$defs/Id"
+    },
+    "stage": {
+      "$ref": "../shared/common.schema.json#/$defs/Stage"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "ts": {
+      "$ref": "../shared/common.schema.json#/$defs/Timestamp"
+    },
+    "done": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "total": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "message": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "e.g. 'embedding batch 3/8', 'OCR page 2/5'"
+    }
+  },
+  "examples": [
+    {
+      "run_id": "019a4b2c-2000-7c00-9000-000000000002",
+      "stage_run_id": "019a4b2c-2100-7c00-9000-000000000003",
+      "stage": "chunk",
+      "version": 1,
+      "ts": "2026-11-01T18:22:05.123Z",
+      "done": 3,
+      "total": 8,
+      "message": "embedding batch 3/8",
+      "type": "stage.progress"
+    }
+  ]
+}

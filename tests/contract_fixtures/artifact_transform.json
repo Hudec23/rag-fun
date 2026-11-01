@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "stage": "transform",
+  "strategy": "multi_query",
+  "question": "How did revenue change?",
+  "queries": [
+    "How did revenue change?",
+    "revenue growth Q3",
+    "subscription revenue trend"
+  ],
+  "hyde_document": null,
+  "messages": [
+    {
+      "role": "system",
+      "content": "You write 2 different search queries ..."
+    },
+    {
+      "role": "user",
+      "content": "How did revenue change?"
+    }
+  ],
+  "model": {
+    "provider": "ollama",
+    "model": "qwen3:8b"
+  }
+}

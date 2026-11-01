@@ -1,0 +1,14 @@
+{
+  "stage_run_id": "019a4b2c-2100-7c00-9000-000000000003",
+  "run_id": "019a4b2c-2000-7c00-9000-000000000002",
+  "run_kind": "query",
+  "stage": "rerank",
+  "version": 1,
+  "params": {
+    "enabled": true,
+    "top_n": 5
+  },
+  "question": "How did revenue change in Q3?",
+  "retrieve_artifact_key": "019a4b2c-2000-7c00-9000-000000000002/retrieve/v1.json",
+  "model": "Xenova/ms-marco-MiniLM-L-6-v2"
+}

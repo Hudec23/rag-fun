@@ -1,0 +1,34 @@
+{
+  "stage_run_id": "019a4b2c-2100-7c00-9000-000000000003",
+  "run_id": "019a4b2c-2000-7c00-9000-000000000002",
+  "run_kind": "ingest",
+  "stage": "store",
+  "version": 1,
+  "params": {},
+  "file": {
+    "file_id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01",
+    "batch_id": "019a4b2c-1e00-7b00-8000-000000000001",
+    "batch_name": "Q3 reports",
+    "filename": "q3-report.pdf",
+    "mime": "application/pdf",
+    "s3_key": "019a4b2c-1e00-7b00-8000-000000000001/019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01/q3-report.pdf",
+    "tags": [
+      "finance",
+      "q3"
+    ]
+  },
+  "chunk_artifact_key": "019a4b2c-2000-7c00-9000-000000000002/chunk/v1.json",
+  "embed_artifact_key": "019a4b2c-2000-7c00-9000-000000000002/embed/v1.json",
+  "collection": {
+    "id": "019a4b2c-1d00-7b00-8000-0000000000aa",
+    "qdrant_name": "rf_019a4b2c1d007b0080000000000000aa",
+    "dense": {
+      "model": "bge-m3",
+      "dims": 1024,
+      "ollama_url": "http://host.docker.internal:11434"
+    },
+    "sparse_model": "Qdrant/bm25"
+  },
+  "parse_strategy": "docling_layout",
+  "chunk_strategy": "recursive"
+}

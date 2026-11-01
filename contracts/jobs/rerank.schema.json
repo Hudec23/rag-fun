@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/jobs/rerank.schema.json",
+  "title": "Job payload: rerank",
+  "description": "Producer: api. Consumer: worker (arq queue 'query', function name 'rerank', called as rerank(ctx, payload)). Delivery: at-least-once (arq), idempotency key stage_run_id. Artifact written to artifacts/{run_id}/rerank/v{version}.json. On finish the worker POSTs /internal/v1/stage-results, then publishes stage.completed or stage.failed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "stage_run_id",
+    "run_id",
+    "run_kind",
+    "stage",
+    "version",
+    "params",
+    "question",
+    "retrieve_artifact_key",
+    "model"
+  ],
+  "properties": {
+    "stage_run_id": {
+      "$ref": "../shared/common.schema.json#/$defs/Id",
+      "description": "stage_runs.id; idempotency key \u2014 the worker may receive a job twice; the api ignores a second result for a stage run that is already done/failed."
+    },
+    "run_id": {
+      "$ref": "../shared/common.schema.json#/$defs/Id",
+      "description": "ingest_runs.id or query_runs.id."
+    },
+    "run_kind": {
+      "const": "query"
+    },
+    "stage": {
+      "const": "rerank"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "params": {
+      "$ref": "../shared/common.schema.json#/$defs/RerankParams"
+    },
+    "question": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "retrieve_artifact_key": {
+      "$ref": "../shared/common.schema.json#/$defs/S3Key",
+      "description": "Active retrieve artifact."
+    },
+    "model": {
+      "$ref": "../shared/common.schema.json#/$defs/RerankModel"
+    }
+  },
+  "examples": [
+    {
+      "stage_run_id": "019a4b2c-2100-7c00-9000-000000000003",
+      "run_id": "019a4b2c-2000-7c00-9000-000000000002",
+      "run_kind": "query",
+      "stage": "rerank",
+      "version": 1,
+      "params": {
+        "enabled": true,
+        "top_n": 5
+      },
+      "question": "How did revenue change in Q3?",
+      "retrieve_artifact_key": "019a4b2c-2000-7c00-9000-000000000002/retrieve/v1.json",
+      "model": "Xenova/ms-marco-MiniLM-L-6-v2"
+    }
+  ]
+}

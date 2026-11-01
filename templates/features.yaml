@@ -1,0 +1,18 @@
+# plan/features.yaml — one entry per user-visible capability.
+# Acceptance tests are written by Claude during planning, exercise the feature end-to-end through
+# its public interface (HTTP, CLI, events), and are locked in the feature's last implementation task.
+# `requirements` are IDs from SYSTEM.md §1a. scripts/autospec-check.py builds plan/TRACEABILITY.md
+# from these links plus each task's `feature:`.
+features:
+  - id: F-orders-create
+    title: Customer can place an order
+    requirements: [R-001]
+    contracts: [contracts/api.openapi.yaml#/paths/~1orders/post]
+    acceptance:
+      - services/api/test/acceptance/orders-create.test.ts
+  - id: F-orders-fulfil
+    title: Placed orders are fulfilled by the worker
+    requirements: [R-002]
+    contracts: [contracts/events/order.created.schema.json]
+    acceptance:
+      - tests/e2e/order-fulfilment.test.ts     # cross-service, runs against docker compose up

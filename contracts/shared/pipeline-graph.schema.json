@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/shared/pipeline-graph.schema.json",
+  "title": "Haystack pipeline graph",
+  "description": "Producer: worker at startup, built from Pipeline.to_dict() for every (stage, variant): PUT /internal/v1/pipeline-graphs/{stage}/{variant}. Consumers: api (stores), web graph view (GET /api/v1/pipeline-graphs/{stage}/{variant}). variant = strategy (parse, chunk, transform), mode (retrieve), 'default' (embed, store, rerank, generate). init_params values are JSON-encoded strings (secrets replaced by '\"***\"').",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "stage",
+    "variant",
+    "nodes",
+    "edges"
+  ],
+  "properties": {
+    "stage": {
+      "$ref": "../shared/common.schema.json#/$defs/Stage"
+    },
+    "variant": {
+      "type": "string",
+      "pattern": "^[a-z_]{1,40}$"
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "type",
+          "init_params",
+          "custom"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "type": {
+            "type": "string",
+            "description": "Fully qualified class, e.g. haystack.components.preprocessors.document_splitter.DocumentSplitter"
+          },
+          "custom": {
+            "type": "boolean",
+            "description": "true for rag_worker.components.* classes"
+          },
+          "init_params": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "value"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string",
+                  "maxLength": 2000
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sender",
+          "sender_socket",
+          "receiver",
+          "receiver_socket"
+        ],
+        "properties": {
+          "sender": {
+            "type": "string"
+          },
+          "sender_socket": {
+            "type": "string"
+          },
+          "receiver": {
+            "type": "string"
+          },
+          "receiver_socket": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "stage": "chunk",
+      "variant": "fixed",
+      "nodes": [
+        {
+          "name": "splitter",
+          "type": "haystack.components.preprocessors.document_splitter.DocumentSplitter",
+          "custom": false,
+          "init_params": [
+            {
+              "name": "split_by",
+              "value": "\"word\""
+            },
+            {
+              "name": "split_length",
+              "value": "200"
+            }
+          ]
+        },
+        {
+          "name": "annotator",
+          "type": "rag_worker.components.chunk_annotator.ChunkAnnotator",
+          "custom": true,
+          "init_params": []
+        }
+      ],
+      "edges": [
+        {
+          "sender": "splitter",
+          "sender_socket": "documents",
+          "receiver": "annotator",
+          "receiver_socket": "documents"
+        }
+      ]
+    }
+  ]
+}

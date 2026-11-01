@@ -1,0 +1,32 @@
+{
+  "$comment": "Every error code used anywhere in rag-fun. HTTP status applies when the error is returned by the api. 'stage' = may appear in stage_runs.error / stage.failed events (produced by the worker).",
+  "codes": {
+    "VALIDATION_ERROR":          { "http": 422, "stage": true,  "message": "Request body or parameters are invalid" },
+    "UNAUTHORIZED":              { "http": 401, "stage": false, "message": "Missing or wrong X-Internal-Token" },
+    "BATCH_NOT_FOUND":           { "http": 404, "stage": false, "message": "Batch not found" },
+    "FILE_NOT_FOUND":            { "http": 404, "stage": true,  "message": "File not found" },
+    "COLLECTION_NOT_FOUND":      { "http": 404, "stage": false, "message": "Collection not found" },
+    "RUN_NOT_FOUND":             { "http": 404, "stage": false, "message": "Ingest or query run not found" },
+    "STAGE_RUN_NOT_FOUND":       { "http": 404, "stage": false, "message": "Stage run not found" },
+    "ARTIFACT_NOT_FOUND":        { "http": 404, "stage": true,  "message": "Stage artifact not found" },
+    "PAGE_NOT_FOUND":            { "http": 404, "stage": false, "message": "Page image not found" },
+    "POINT_NOT_FOUND":           { "http": 404, "stage": false, "message": "Qdrant point not found" },
+    "PIPELINE_GRAPH_NOT_FOUND":  { "http": 404, "stage": false, "message": "No pipeline graph reported for this stage yet" },
+    "EMPTY_UPLOAD":              { "http": 400, "stage": false, "message": "No files in upload" },
+    "UNSUPPORTED_FILE_TYPE":     { "http": 415, "stage": false, "message": "File type is not supported" },
+    "FILE_TOO_LARGE":            { "http": 413, "stage": false, "message": "File exceeds MAX_UPLOAD_MB" },
+    "TOO_MANY_FILES":            { "http": 413, "stage": false, "message": "Batch exceeds MAX_FILES_PER_BATCH" },
+    "COLLECTION_NAME_TAKEN":     { "http": 409, "stage": false, "message": "A collection with this name already exists" },
+    "STAGE_PREREQUISITE_MISSING":{ "http": 409, "stage": false, "message": "The previous stage has no done version yet" },
+    "STAGE_ALREADY_RUNNING":     { "http": 409, "stage": false, "message": "This stage is already queued or running for this run" },
+    "UNSUPPORTED_FOR_STRATEGY":  { "http": 422, "stage": true,  "message": "This file type cannot be processed with the chosen strategy" },
+    "PARSE_FAILED":              { "http": 500, "stage": true,  "message": "Document conversion failed" },
+    "MODEL_NOT_AVAILABLE":       { "http": 502, "stage": true,  "message": "Model is not installed or not reachable" },
+    "LLM_ERROR":                 { "http": 502, "stage": true,  "message": "Chat model call failed" },
+    "EMBEDDING_ERROR":           { "http": 502, "stage": true,  "message": "Embedding model call failed" },
+    "QDRANT_ERROR":              { "http": 503, "stage": true,  "message": "Qdrant request failed" },
+    "S3_ERROR":                  { "http": 503, "stage": true,  "message": "S3 request failed" },
+    "DEPENDENCY_UNAVAILABLE":    { "http": 503, "stage": false, "message": "A backing service is unavailable" },
+    "INTERNAL_ERROR":            { "http": 500, "stage": true,  "message": "Unexpected error" }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/artifacts/store.schema.json",
+  "title": "Store stage artifact",
+  "description": "Producer: worker store job. Stored at s3://artifacts/{run_id}/store/v{version}.json. Consumers: api, web store view.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "stage", "qdrant_collection", "points_deleted", "points_written", "point_ids", "payload_sample", "vector_config"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "stage": { "const": "store" },
+    "qdrant_collection": { "type": "string", "pattern": "^rf_[0-9a-f]{32}$" },
+    "points_deleted": { "type": "integer", "minimum": 0, "description": "Points of this file removed before writing (re-store)." },
+    "points_written": { "type": "integer", "minimum": 0 },
+    "point_ids": { "type": "array", "items": { "$ref": "../shared/common.schema.json#/$defs/PointId" }, "description": "In chunk index order." },
+    "payload_sample": { "$ref": "../qdrant/payload.schema.json", "description": "Payload of chunk 0 exactly as written." },
+    "vector_config": {
+      "type": "object", "additionalProperties": false, "required": ["dense_name", "dense_size", "distance", "sparse_name", "sparse_modifier"],
+      "properties": {
+        "dense_name": { "const": "text-dense" },
+        "dense_size": { "type": "integer", "enum": [384, 768, 1024] },
+        "distance": { "const": "Cosine" },
+        "sparse_name": { "const": "text-sparse" },
+        "sparse_modifier": { "type": "string", "enum": ["idf", "none"] }
+      }
+    }
+  }
+}

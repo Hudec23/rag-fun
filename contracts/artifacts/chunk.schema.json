@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/artifacts/chunk.schema.json",
+  "title": "Chunk stage artifact",
+  "description": "Producer: worker chunk job. Stored at s3://artifacts/{run_id}/chunk/v{version}.json. Consumers: worker embed + store jobs, api, web chunk view. source_text = parse artifact full_text (copied so the view needs one fetch). char_start/char_end locate the chunk in source_text; null when the chunk text is not a contiguous substring (structure strategy with headings prepended, table row chunks).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "stage", "strategy", "params", "parse_strategy", "source_text", "chunks", "stats", "semantic"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "stage": { "const": "chunk" },
+    "strategy": { "$ref": "../shared/common.schema.json#/$defs/ChunkStrategy" },
+    "params": { "$ref": "../shared/common.schema.json#/$defs/ChunkParams" },
+    "parse_strategy": { "$ref": "../shared/common.schema.json#/$defs/ParseStrategy" },
+    "source_text": { "type": "string" },
+    "chunks": { "type": "array", "items": { "$ref": "#/$defs/Chunk" } },
+    "stats": {
+      "type": "object", "additionalProperties": false,
+      "required": ["count", "min_chars", "max_chars", "mean_chars", "histogram"],
+      "properties": {
+        "count": { "type": "integer", "minimum": 0 },
+        "min_chars": { "type": "integer", "minimum": 0 },
+        "max_chars": { "type": "integer", "minimum": 0 },
+        "mean_chars": { "type": "number", "minimum": 0 },
+        "histogram": {
+          "type": "object", "additionalProperties": false, "required": ["bin_edges", "counts"],
+          "description": "numpy.histogram(char_counts, bins=min(20, max(1, count))). len(bin_edges) = len(counts)+1. Both empty when count = 0.",
+          "properties": {
+            "bin_edges": { "type": "array", "items": { "type": "number" } },
+            "counts": { "type": "array", "items": { "type": "integer", "minimum": 0 } }
+          }
+        }
+      }
+    },
+    "semantic": {
+      "description": "Only for strategy=semantic: one entry per gap between neighbouring sentences. null otherwise.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object", "additionalProperties": false, "required": ["threshold", "gaps"],
+          "properties": {
+            "threshold": { "type": "number", "description": "Cosine distance at breakpoint_percentile." },
+            "gaps": {
+              "type": "array",
+              "items": {
+                "type": "object", "additionalProperties": false, "required": ["after_sentence", "distance", "is_break"],
+                "properties": {
+                  "after_sentence": { "type": "integer", "minimum": 0 },
+                  "distance": { "type": "number", "minimum": 0, "maximum": 2 },
+                  "is_break": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "Chunk": {
+      "type": "object", "additionalProperties": false,
+      "required": ["index", "doc_id", "text", "char_start", "char_end", "element_ids", "page_numbers", "section_path", "element_type", "char_count", "token_estimate"],
+      "properties": {
+        "index": { "type": "integer", "minimum": 0, "description": "0-based, contiguous." },
+        "doc_id": { "$ref": "../shared/common.schema.json#/$defs/DocId" },
+        "text": { "type": "string", "minLength": 1 },
+        "char_start": { "type": ["integer", "null"], "minimum": 0 },
+        "char_end": { "type": ["integer", "null"], "minimum": 0 },
+        "element_ids": { "type": "array", "items": { "type": "string", "pattern": "^e-[0-9]{4,6}$" }, "description": "Parse elements overlapping this chunk." },
+        "page_numbers": { "type": "array", "items": { "type": "integer", "minimum": 1 }, "uniqueItems": true },
+        "section_path": { "type": "array", "items": { "type": "string", "maxLength": 300 }, "maxItems": 10 },
+        "element_type": { "$ref": "../shared/common.schema.json#/$defs/ChunkElementType" },
+        "char_count": { "type": "integer", "minimum": 1 },
+        "token_estimate": { "type": "integer", "minimum": 1, "description": "ceil(char_count / 4); exact counts come in the embed artifact." }
+      }
+    }
+  },
+  "examples": [
+    {
+      "schema_version": 1, "stage": "chunk", "strategy": "fixed",
+      "params": { "strategy": "fixed", "split_by": "word", "length": 3, "overlap": 1 },
+      "parse_strategy": "plain_text",
+      "source_text": "one two three four five",
+      "chunks": [
+        { "index": 0, "doc_id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01:00000", "text": "one two three ", "char_start": 0, "char_end": 14, "element_ids": ["e-0000"], "page_numbers": [], "section_path": [], "element_type": "text", "char_count": 14, "token_estimate": 4 },
+        { "index": 1, "doc_id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01:00001", "text": "three four five", "char_start": 8, "char_end": 23, "element_ids": ["e-0000"], "page_numbers": [], "section_path": [], "element_type": "text", "char_count": 15, "token_estimate": 4 }
+      ],
+      "stats": { "count": 2, "min_chars": 14, "max_chars": 15, "mean_chars": 14.5, "histogram": { "bin_edges": [14, 14.5, 15], "counts": [1, 1] } },
+      "semantic": null
+    }
+  ]
+}

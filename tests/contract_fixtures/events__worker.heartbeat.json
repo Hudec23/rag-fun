@@ -1,0 +1,6 @@
+{
+  "queue": "ingest",
+  "ts": "2026-11-01T18:22:05.123Z",
+  "model_backend": "real",
+  "jobs_running": 1
+}

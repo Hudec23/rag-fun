@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "stage": "store",
+  "qdrant_collection": "rf_019a4b2c1d007b0080000000000000aa",
+  "points_deleted": 0,
+  "points_written": 4,
+  "point_ids": [
+    "00000000000000000000000000000001",
+    "00000000000000000000000000000002",
+    "00000000000000000000000000000003",
+    "00000000000000000000000000000004"
+  ],
+  "payload_sample": {
+    "id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01:00000",
+    "content": "Q3 Report\n\nRevenue grew 12 percent year over year, driven by subscriptions.",
+    "blob": null,
+    "score": null,
+    "meta": {
+      "file_id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01",
+      "batch_id": "019a4b2c-1e00-7b00-8000-000000000001",
+      "batch_name": "Q3 reports",
+      "filename": "q3-report.pdf",
+      "mime": "application/pdf",
+      "tags": [
+        "finance",
+        "q3"
+      ],
+      "page": 1,
+      "page_numbers": [
+        1
+      ],
+      "section_path": [
+        "Q3 Report"
+      ],
+      "element_type": "text",
+      "chunk_index": 0,
+      "chunk_strategy": "recursive",
+      "parse_strategy": "docling_layout",
+      "ingest_run_id": "019a4b2c-2000-7c00-9000-000000000002",
+      "dense_model": "all-minilm",
+      "sparse_model": "Qdrant/bm25",
+      "stored_at": "2026-11-01T18:22:05.123Z"
+    }
+  },
+  "vector_config": {
+    "dense_name": "text-dense",
+    "dense_size": 384,
+    "distance": "Cosine",
+    "sparse_name": "text-sparse",
+    "sparse_modifier": "idf"
+  }
+}

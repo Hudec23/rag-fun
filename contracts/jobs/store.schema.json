@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/jobs/store.schema.json",
+  "title": "Job payload: store",
+  "description": "Producer: api. Consumer: worker (arq queue 'ingest', function name 'store', called as store(ctx, payload)). Delivery: at-least-once (arq), idempotency key stage_run_id. Artifact written to artifacts/{run_id}/store/v{version}.json. On finish the worker POSTs /internal/v1/stage-results, then publishes stage.completed or stage.failed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "stage_run_id",
+    "run_id",
+    "run_kind",
+    "stage",
+    "version",
+    "params",
+    "file",
+    "chunk_artifact_key",
+    "embed_artifact_key",
+    "collection",
+    "parse_strategy",
+    "chunk_strategy"
+  ],
+  "properties": {
+    "stage_run_id": {
+      "$ref": "../shared/common.schema.json#/$defs/Id",
+      "description": "stage_runs.id; idempotency key \u2014 the worker may receive a job twice; the api ignores a second result for a stage run that is already done/failed."
+    },
+    "run_id": {
+      "$ref": "../shared/common.schema.json#/$defs/Id",
+      "description": "ingest_runs.id or query_runs.id."
+    },
+    "run_kind": {
+      "const": "ingest"
+    },
+    "stage": {
+      "const": "store"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "params": {
+      "$ref": "../shared/common.schema.json#/$defs/StoreParams"
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file_id",
+        "batch_id",
+        "batch_name",
+        "filename",
+        "mime",
+        "s3_key",
+        "tags"
+      ],
+      "properties": {
+        "file_id": {
+          "$ref": "../shared/common.schema.json#/$defs/Id"
+        },
+        "batch_id": {
+          "$ref": "../shared/common.schema.json#/$defs/Id"
+        },
+        "batch_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "filename": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "mime": {
+          "$ref": "../shared/common.schema.json#/$defs/Mime"
+        },
+        "s3_key": {
+          "$ref": "../shared/common.schema.json#/$defs/S3Key",
+          "description": "Key in bucket uploads."
+        },
+        "tags": {
+          "$ref": "../shared/common.schema.json#/$defs/Tags",
+          "description": "Union of file and batch tags, sorted."
+        }
+      }
+    },
+    "chunk_artifact_key": {
+      "$ref": "../shared/common.schema.json#/$defs/S3Key",
+      "description": "Chunk artifact the embed artifact was built from."
+    },
+    "embed_artifact_key": {
+      "$ref": "../shared/common.schema.json#/$defs/S3Key",
+      "description": "Active embed artifact."
+    },
+    "collection": {
+      "$ref": "../shared/common.schema.json#/$defs/CollectionRef"
+    },
+    "parse_strategy": {
+      "$ref": "../shared/common.schema.json#/$defs/ParseStrategy"
+    },
+    "chunk_strategy": {
+      "$ref": "../shared/common.schema.json#/$defs/ChunkStrategy"
+    }
+  },
+  "examples": [
+    {
+      "stage_run_id": "019a4b2c-2100-7c00-9000-000000000003",
+      "run_id": "019a4b2c-2000-7c00-9000-000000000002",
+      "run_kind": "ingest",
+      "stage": "store",
+      "version": 1,
+      "params": {},
+      "file": {
+        "file_id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01",
+        "batch_id": "019a4b2c-1e00-7b00-8000-000000000001",
+        "batch_name": "Q3 reports",
+        "filename": "q3-report.pdf",
+        "mime": "application/pdf",
+        "s3_key": "019a4b2c-1e00-7b00-8000-000000000001/019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01/q3-report.pdf",
+        "tags": [
+          "finance",
+          "q3"
+        ]
+      },
+      "chunk_artifact_key": "019a4b2c-2000-7c00-9000-000000000002/chunk/v1.json",
+      "embed_artifact_key": "019a4b2c-2000-7c00-9000-000000000002/embed/v1.json",
+      "collection": {
+        "id": "019a4b2c-1d00-7b00-8000-0000000000aa",
+        "qdrant_name": "rf_019a4b2c1d007b0080000000000000aa",
+        "dense": {
+          "model": "bge-m3",
+          "dims": 1024,
+          "ollama_url": "http://host.docker.internal:11434"
+        },
+        "sparse_model": "Qdrant/bm25"
+      },
+      "parse_strategy": "docling_layout",
+      "chunk_strategy": "recursive"
+    }
+  ]
+}

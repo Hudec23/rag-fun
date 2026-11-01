@@ -1,0 +1,21 @@
+{
+  "stage_run_id": "019a4b2c-2100-7c00-9000-000000000003",
+  "run_id": "019a4b2c-2000-7c00-9000-000000000002",
+  "run_kind": "query",
+  "stage": "generate",
+  "version": 1,
+  "params": {
+    "max_context_tokens": 4000,
+    "temperature": 0.2,
+    "max_answer_tokens": 800
+  },
+  "question": "How did revenue change in Q3?",
+  "context_artifact_key": "019a4b2c-2000-7c00-9000-000000000002/rerank/v1.json",
+  "context_source": "rerank",
+  "chat": {
+    "provider": "ollama",
+    "model": "qwen3:8b",
+    "base_url": "http://host.docker.internal:11434",
+    "api_key": null
+  }
+}

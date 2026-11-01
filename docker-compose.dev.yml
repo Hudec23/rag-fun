@@ -1,0 +1,78 @@
+# Toolchain containers for the executor + isolated test infrastructure.
+# Every service's build/lint/test runs here, so the runner only needs Docker.
+# Test infra uses *-test names and no host ports, so it never collides with the running app.
+name: ragfun-dev
+
+x-py-env: &py-env
+  UV_PROJECT_ENVIRONMENT: /opt/venv
+  UV_CACHE_DIR: /opt/uv-cache
+  UV_LINK_MODE: copy
+  DATABASE_URL: postgresql+asyncpg://ragfun:ragfun@postgres-test:5432/ragfun_test
+  REDIS_URL: redis://redis-test:6379/0
+  S3_ENDPOINT_URL: http://s3-test:9000
+  S3_ACCESS_KEY: ragfun
+  S3_SECRET_KEY: ragfun-secret
+  S3_BUCKET_UPLOADS: uploads
+  S3_BUCKET_ARTIFACTS: artifacts
+  QDRANT_URL: http://qdrant-test:6333
+  INTERNAL_TOKEN: test-internal-token
+  API_INTERNAL_URL: http://api-fake:8000
+  OLLAMA_URL_DEFAULT: http://ollama-fake:11434
+  MODEL_BACKEND: fake
+  LOG_LEVEL: WARNING
+
+services:
+  api-dev:
+    build: { context: services/api, target: dev }
+    working_dir: /workspace/services/api
+    volumes: [".:/workspace", "api-venv:/opt/venv", "uv-cache:/opt/uv-cache"]
+    environment: *py-env
+    depends_on:
+      postgres-test: { condition: service_healthy }
+      redis-test: { condition: service_healthy }
+      qdrant-test: { condition: service_started }
+      s3-test: { condition: service_started }
+
+  worker-dev:
+    build: { context: services/worker, target: dev }   # dev target includes baked model files
+    working_dir: /workspace/services/worker
+    volumes: [".:/workspace", "worker-venv:/opt/venv", "uv-cache:/opt/uv-cache"]
+    environment:
+      <<: *py-env
+      WORKER_QUEUE: ingest
+      HF_HUB_OFFLINE: "1"
+    depends_on:
+      redis-test: { condition: service_healthy }
+      qdrant-test: { condition: service_started }
+      s3-test: { condition: service_started }
+
+  web-dev:
+    image: node:24.19.0-slim
+    working_dir: /workspace/services/web
+    volumes: [".:/workspace", "web-node-modules:/workspace/services/web/node_modules"]
+    environment: { CI: "true" }
+
+  postgres-test:
+    image: postgres:17.11
+    environment: { POSTGRES_USER: ragfun, POSTGRES_PASSWORD: ragfun, POSTGRES_DB: ragfun_test }
+    tmpfs: [/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD", "pg_isready", "-U", "ragfun"], interval: 2s, retries: 30 }
+
+  redis-test:
+    image: redis:8.6.8
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 2s, retries: 30 }
+
+  qdrant-test:
+    image: qdrant/qdrant:v1.19.2
+    tmpfs: [/qdrant/storage]
+
+  s3-test:
+    image: rustfs/rustfs:1.0.3
+    environment: { RUSTFS_ACCESS_KEY: ragfun, RUSTFS_SECRET_KEY: ragfun-secret, RUSTFS_VOLUMES: /data, RUSTFS_ADDRESS: "0.0.0.0:9000" }
+    tmpfs: [/data]
+
+volumes:
+  api-venv:
+  worker-venv:
+  uv-cache:
+  web-node-modules:

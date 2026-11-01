@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/events/stage.failed.schema.json",
+  "title": "Event stage.failed",
+  "description": "Producer: worker. Transport: Redis pub/sub channel 'events:{run_id}', message = this JSON (UTF-8). Consumer: api, which relays it unchanged as an SSE message with 'event: stage.failed' and 'data: <json>' on GET /api/v1/events?run_id=\u2026; consumer of that: web. Delivery: at-most-once, no replay \u2014 clients refetch GET /stage-runs/{id} on (re)connect. Published after the stage-results callback (status failed) returned 2xx, or after 5 failed callback attempts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type",
+    "run_id",
+    "stage_run_id",
+    "stage",
+    "version",
+    "ts",
+    "error"
+  ],
+  "properties": {
+    "type": {
+      "const": "stage.failed"
+    },
+    "run_id": {
+      "$ref": "../shared/common.schema.json#/$defs/Id"
+    },
+    "stage_run_id": {
+      "$ref": "../shared/common.schema.json#/$defs/Id"
+    },
+    "stage": {
+      "$ref": "../shared/common.schema.json#/$defs/Stage"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "ts": {
+      "$ref": "../shared/common.schema.json#/$defs/Timestamp"
+    },
+    "error": {
+      "$ref": "../shared/common.schema.json#/$defs/ErrorBody"
+    }
+  },
+  "examples": [
+    {
+      "run_id": "019a4b2c-2000-7c00-9000-000000000002",
+      "stage_run_id": "019a4b2c-2100-7c00-9000-000000000003",
+      "stage": "parse",
+      "version": 1,
+      "ts": "2026-11-01T18:22:05.123Z",
+      "error": {
+        "code": "UNSUPPORTED_FOR_STRATEGY",
+        "message": "plain_text cannot read image/png",
+        "details": {
+          "mime": "image/png"
+        }
+      },
+      "type": "stage.failed"
+    }
+  ]
+}

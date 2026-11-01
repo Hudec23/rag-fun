@@ -1,0 +1,392 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/artifacts/parse.schema.json",
+  "title": "Parse stage artifact",
+  "description": "Producer: worker parse job. Stored at s3://artifacts/{run_id}/parse/v{version}.json; page images at artifacts/{run_id}/parse/v{version}/page-{page_no}.png. Consumers: worker chunk job, api (GET /stage-runs/{id}/artifact, /pages/{n}), web parse view. Element order = reading order. full_text = element texts (non-empty, excluding page_header/page_footer) joined with '\\n\\n'; each element's char span points into full_text.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "stage",
+    "strategy",
+    "file_id",
+    "mime",
+    "pages",
+    "elements",
+    "full_text",
+    "ocr_used",
+    "docling_json_key"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "stage": {
+      "const": "parse"
+    },
+    "strategy": {
+      "$ref": "../shared/common.schema.json#/$defs/ParseStrategy"
+    },
+    "file_id": {
+      "$ref": "../shared/common.schema.json#/$defs/Id"
+    },
+    "mime": {
+      "$ref": "../shared/common.schema.json#/$defs/Mime"
+    },
+    "ocr_used": {
+      "type": "boolean",
+      "description": "true if any element text came from OCR."
+    },
+    "pages": {
+      "type": "array",
+      "description": "One entry per page, ascending. Empty for formats without pages (txt, md, html, csv, docx when Docling reports none).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "page_no",
+          "width",
+          "height",
+          "image_key"
+        ],
+        "properties": {
+          "page_no": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "width": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "Page width in PDF points (Docling page size)."
+          },
+          "height": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "image_key": {
+            "oneOf": [
+              {
+                "$ref": "../shared/common.schema.json#/$defs/S3Key"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Key in bucket artifacts; null when page_images=false or strategy=plain_text."
+          }
+        }
+      }
+    },
+    "elements": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Element"
+      }
+    },
+    "full_text": {
+      "type": "string"
+    },
+    "docling_json_key": {
+      "oneOf": [
+        {
+          "$ref": "../shared/common.schema.json#/$defs/S3Key"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "DoclingDocument JSON (bucket artifacts, artifacts/{run_id}/parse/v{version}/docling.json) for the structure chunk strategy; null for plain_text."
+    }
+  },
+  "$defs": {
+    "BBox": {
+      "type": "object",
+      "description": "Box in page points, origin top-left (Docling bbox converted with to_top_left_origin). l<r, t<b.",
+      "additionalProperties": false,
+      "required": [
+        "l",
+        "t",
+        "r",
+        "b"
+      ],
+      "properties": {
+        "l": {
+          "type": "number",
+          "minimum": 0
+        },
+        "t": {
+          "type": "number",
+          "minimum": 0
+        },
+        "r": {
+          "type": "number",
+          "minimum": 0
+        },
+        "b": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "TableCell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row",
+        "col",
+        "row_span",
+        "col_span",
+        "text",
+        "is_header"
+      ],
+      "properties": {
+        "row": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "col": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "row_span": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "col_span": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "text": {
+          "type": "string"
+        },
+        "is_header": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Table": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "num_rows",
+        "num_cols",
+        "cells",
+        "markdown"
+      ],
+      "properties": {
+        "num_rows": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "num_cols": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cells": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TableCell"
+          }
+        },
+        "markdown": {
+          "type": "string",
+          "description": "GitHub-flavoured markdown table; this is also the element text."
+        }
+      }
+    },
+    "Element": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "text",
+        "page_no",
+        "bbox",
+        "heading_level",
+        "section_path",
+        "table",
+        "from_ocr",
+        "char_start",
+        "char_end"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^e-[0-9]{4,6}$",
+          "description": "e-0000, e-0001, \u2026 in reading order."
+        },
+        "type": {
+          "$ref": "../shared/common.schema.json#/$defs/ElementType"
+        },
+        "text": {
+          "type": "string"
+        },
+        "page_no": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "bbox": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/BBox"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null for plain_text and formats without layout."
+        },
+        "heading_level": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 6,
+          "description": "Only for title (1) and heading."
+        },
+        "section_path": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "maxItems": 10,
+          "description": "Headings above this element, outermost first."
+        },
+        "table": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Table"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set only when type = table."
+        },
+        "from_ocr": {
+          "type": "boolean"
+        },
+        "char_start": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Offset of text in full_text; null for page_header/page_footer/empty."
+        },
+        "char_end": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Exclusive end offset."
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "schema_version": 1,
+      "stage": "parse",
+      "strategy": "docling_layout",
+      "file_id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01",
+      "mime": "application/pdf",
+      "ocr_used": false,
+      "pages": [
+        {
+          "page_no": 1,
+          "width": 612,
+          "height": 792,
+          "image_key": "019a4b2c-2000-7c00-9000-000000000002/parse/v1/page-1.png"
+        }
+      ],
+      "elements": [
+        {
+          "id": "e-0000",
+          "type": "title",
+          "text": "Q3 Report",
+          "page_no": 1,
+          "bbox": {
+            "l": 72,
+            "t": 60,
+            "r": 300,
+            "b": 90
+          },
+          "heading_level": 1,
+          "section_path": [],
+          "table": null,
+          "from_ocr": false,
+          "char_start": 0,
+          "char_end": 9
+        },
+        {
+          "id": "e-0001",
+          "type": "table",
+          "text": "| Q | Rev |\n|---|---|\n| Q3 | 12 |",
+          "page_no": 1,
+          "bbox": {
+            "l": 72,
+            "t": 120,
+            "r": 540,
+            "b": 200
+          },
+          "heading_level": null,
+          "section_path": [
+            "Q3 Report"
+          ],
+          "table": {
+            "num_rows": 2,
+            "num_cols": 2,
+            "markdown": "| Q | Rev |\n|---|---|\n| Q3 | 12 |",
+            "cells": [
+              {
+                "row": 0,
+                "col": 0,
+                "row_span": 1,
+                "col_span": 1,
+                "text": "Q",
+                "is_header": true
+              },
+              {
+                "row": 0,
+                "col": 1,
+                "row_span": 1,
+                "col_span": 1,
+                "text": "Rev",
+                "is_header": true
+              },
+              {
+                "row": 1,
+                "col": 0,
+                "row_span": 1,
+                "col_span": 1,
+                "text": "Q3",
+                "is_header": false
+              },
+              {
+                "row": 1,
+                "col": 1,
+                "row_span": 1,
+                "col_span": 1,
+                "text": "12",
+                "is_header": false
+              }
+            ]
+          },
+          "from_ocr": false,
+          "char_start": 11,
+          "char_end": 43
+        }
+      ],
+      "full_text": "Q3 Report\n\n| Q | Rev |\n|---|---|\n| Q3 | 12 |",
+      "docling_json_key": "019a4b2c-2000-7c00-9000-000000000002/parse/v1/docling.json"
+    }
+  ]
+}

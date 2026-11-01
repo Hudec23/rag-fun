@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/events/worker.heartbeat.schema.json",
+  "title": "Worker heartbeat (Redis key)",
+  "description": "Producer: each worker container, every 10 s: SET 'ragfun:worker:{queue}:heartbeat' <this JSON> EX 30. Consumer: api GET /status (worker-ingest / worker-query ok = key exists). Not a pub/sub message.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "queue",
+    "ts",
+    "model_backend",
+    "jobs_running"
+  ],
+  "properties": {
+    "queue": {
+      "type": "string",
+      "enum": [
+        "ingest",
+        "query"
+      ]
+    },
+    "ts": {
+      "$ref": "../shared/common.schema.json#/$defs/Timestamp"
+    },
+    "model_backend": {
+      "type": "string",
+      "enum": [
+        "real",
+        "fake"
+      ]
+    },
+    "jobs_running": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "examples": [
+    {
+      "queue": "ingest",
+      "ts": "2026-11-01T18:22:05.123Z",
+      "model_backend": "real",
+      "jobs_running": 1
+    }
+  ]
+}

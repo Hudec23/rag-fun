@@ -1,0 +1,36 @@
+{
+  "stage_run_id": "019a4b2c-2100-7c00-9000-000000000003",
+  "run_id": "019a4b2c-2000-7c00-9000-000000000002",
+  "run_kind": "query",
+  "stage": "retrieve",
+  "version": 1,
+  "params": {
+    "mode": "hybrid",
+    "top_k": 10,
+    "rrf_k": 60,
+    "filters": {
+      "must": [
+        {
+          "key": "tags",
+          "match": {
+            "any": [
+              "finance"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "question": "How did revenue change in Q3?",
+  "transform_artifact_key": "019a4b2c-2000-7c00-9000-000000000002/transform/v1.json",
+  "collection": {
+    "id": "019a4b2c-1d00-7b00-8000-0000000000aa",
+    "qdrant_name": "rf_019a4b2c1d007b0080000000000000aa",
+    "dense": {
+      "model": "bge-m3",
+      "dims": 1024,
+      "ollama_url": "http://host.docker.internal:11434"
+    },
+    "sparse_model": "Qdrant/bm25"
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/artifacts/retrieve.schema.json",
+  "title": "Retrieve stage artifact",
+  "description": "Producer: worker retrieve job. Stored at s3://artifacts/{run_id}/retrieve/v{version}.json. Consumers: worker rerank + generate jobs, api, web. For each query in the transform artifact: dense and/or sparse lists (top_k each). fused = RRF over all lists of all queries: score(d) = Σ 1/(rrf_k + rank_in_list); ties broken by doc_id ascending; truncated to top_k. For mode dense/sparse with one query, fused = that list re-ranked 1..n with original scores. final = fused.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "stage", "mode", "top_k", "rrf_k", "filters", "per_query", "fused"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "stage": { "const": "retrieve" },
+    "mode": { "type": "string", "enum": ["dense", "sparse", "hybrid"] },
+    "top_k": { "type": "integer", "minimum": 1, "maximum": 50 },
+    "rrf_k": { "type": "integer", "minimum": 1, "maximum": 200 },
+    "filters": { "$ref": "../shared/common.schema.json#/$defs/PayloadFilter" },
+    "per_query": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["query", "dense", "sparse"],
+        "properties": {
+          "query": { "type": "string" },
+          "dense": { "oneOf": [{ "type": "null" }, { "type": "array", "items": { "$ref": "../shared/common.schema.json#/$defs/Hit" } }], "description": "null when mode = sparse." },
+          "sparse": { "oneOf": [{ "type": "null" }, { "type": "array", "items": { "$ref": "../shared/common.schema.json#/$defs/Hit" } }], "description": "null when mode = dense." }
+        }
+      }
+    },
+    "fused": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["hit", "source_ranks"],
+        "properties": {
+          "hit": { "$ref": "../shared/common.schema.json#/$defs/Hit" },
+          "source_ranks": {
+            "type": "array", "description": "Rank of this doc in every input list where it appears (for the side-by-side view).",
+            "items": {
+              "type": "object", "additionalProperties": false, "required": ["query_index", "list", "rank"],
+              "properties": {
+                "query_index": { "type": "integer", "minimum": 0 },
+                "list": { "type": "string", "enum": ["dense", "sparse"] },
+                "rank": { "type": "integer", "minimum": 1 }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

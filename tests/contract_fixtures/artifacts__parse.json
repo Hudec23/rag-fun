@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "stage": "parse",
+  "strategy": "docling_layout",
+  "file_id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01",
+  "mime": "application/pdf",
+  "ocr_used": false,
+  "pages": [
+    {
+      "page_no": 1,
+      "width": 612,
+      "height": 792,
+      "image_key": "019a4b2c-2000-7c00-9000-000000000002/parse/v1/page-1.png"
+    }
+  ],
+  "elements": [
+    {
+      "id": "e-0000",
+      "type": "title",
+      "text": "Q3 Report",
+      "page_no": 1,
+      "bbox": {
+        "l": 72,
+        "t": 60,
+        "r": 300,
+        "b": 90
+      },
+      "heading_level": 1,
+      "section_path": [],
+      "table": null,
+      "from_ocr": false,
+      "char_start": 0,
+      "char_end": 9
+    },
+    {
+      "id": "e-0001",
+      "type": "table",
+      "text": "| Q | Rev |\n|---|---|\n| Q3 | 12 |",
+      "page_no": 1,
+      "bbox": {
+        "l": 72,
+        "t": 120,
+        "r": 540,
+        "b": 200
+      },
+      "heading_level": null,
+      "section_path": [
+        "Q3 Report"
+      ],
+      "table": {
+        "num_rows": 2,
+        "num_cols": 2,
+        "markdown": "| Q | Rev |\n|---|---|\n| Q3 | 12 |",
+        "cells": [
+          {
+            "row": 0,
+            "col": 0,
+            "row_span": 1,
+            "col_span": 1,
+            "text": "Q",
+            "is_header": true
+          },
+          {
+            "row": 0,
+            "col": 1,
+            "row_span": 1,
+            "col_span": 1,
+            "text": "Rev",
+            "is_header": true
+          },
+          {
+            "row": 1,
+            "col": 0,
+            "row_span": 1,
+            "col_span": 1,
+            "text": "Q3",
+            "is_header": false
+          },
+          {
+            "row": 1,
+            "col": 1,
+            "row_span": 1,
+            "col_span": 1,
+            "text": "12",
+            "is_header": false
+          }
+        ]
+      },
+      "from_ocr": false,
+      "char_start": 11,
+      "char_end": 43
+    }
+  ],
+  "full_text": "Q3 Report\n\n| Q | Rev |\n|---|---|\n| Q3 | 12 |",
+  "docling_json_key": "019a4b2c-2000-7c00-9000-000000000002/parse/v1/docling.json"
+}

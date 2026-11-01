@@ -1,0 +1,36 @@
+{
+  "stage_run_id": "019a4b2c-2100-7c00-9000-000000000003",
+  "run_id": "019a4b2c-2000-7c00-9000-000000000002",
+  "run_kind": "ingest",
+  "stage": "chunk",
+  "version": 1,
+  "params": {
+    "strategy": "recursive",
+    "length": 1000,
+    "overlap": 100,
+    "separators": [
+      "\n\n",
+      "sentence",
+      "\n",
+      " "
+    ]
+  },
+  "file": {
+    "file_id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01",
+    "batch_id": "019a4b2c-1e00-7b00-8000-000000000001",
+    "batch_name": "Q3 reports",
+    "filename": "q3-report.pdf",
+    "mime": "application/pdf",
+    "s3_key": "019a4b2c-1e00-7b00-8000-000000000001/019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01/q3-report.pdf",
+    "tags": [
+      "finance",
+      "q3"
+    ]
+  },
+  "parse_artifact_key": "019a4b2c-2000-7c00-9000-000000000002/parse/v1.json",
+  "dense": {
+    "model": "bge-m3",
+    "dims": 1024,
+    "ollama_url": "http://host.docker.internal:11434"
+  }
+}

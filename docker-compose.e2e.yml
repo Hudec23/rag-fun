@@ -1,0 +1,21 @@
+# Override for acceptance tests: fake models, no host ports, separate project.
+# Used as: docker compose -p ragfun-e2e -f docker-compose.yml -f docker-compose.e2e.yml ...
+services:
+  qdrant: { ports: !reset [] }
+  s3: { ports: !reset [] }
+  api: { ports: !reset [] }
+  web: { ports: !reset [] }
+  worker-ingest:
+    environment: { WORKER_QUEUE: ingest, MODEL_BACKEND: fake }
+  worker-query:
+    environment: { WORKER_QUEUE: query, MODEL_BACKEND: fake }
+  e2e:
+    build: { context: tests/e2e }
+    working_dir: /workspace/tests/e2e
+    volumes: [".:/workspace"]
+    environment: { E2E_API_URL: "http://api:8000/api/v1", E2E_WEB_URL: "http://web" }
+    depends_on:
+      api: { condition: service_healthy }
+      worker-ingest: { condition: service_started }
+      worker-query: { condition: service_started }
+    profiles: ["e2e"]

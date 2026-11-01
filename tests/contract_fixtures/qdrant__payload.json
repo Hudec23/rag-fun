@@ -1,0 +1,33 @@
+{
+  "id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01:00003",
+  "content": "Revenue grew 12% year over year, driven by subscriptions.",
+  "blob": null,
+  "score": null,
+  "meta": {
+    "file_id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01",
+    "batch_id": "019a4b2c-1e00-7b00-8000-000000000001",
+    "batch_name": "Q3 reports",
+    "filename": "q3-report.pdf",
+    "mime": "application/pdf",
+    "tags": [
+      "finance",
+      "q3"
+    ],
+    "page": 2,
+    "page_numbers": [
+      2
+    ],
+    "section_path": [
+      "Results",
+      "Revenue"
+    ],
+    "element_type": "text",
+    "chunk_index": 3,
+    "chunk_strategy": "recursive",
+    "parse_strategy": "docling_layout",
+    "ingest_run_id": "019a4b2c-2000-7c00-9000-000000000002",
+    "dense_model": "bge-m3",
+    "sparse_model": "Qdrant/bm25",
+    "stored_at": "2026-11-01T18:22:05.123Z"
+  }
+}

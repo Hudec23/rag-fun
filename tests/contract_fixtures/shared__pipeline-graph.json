@@ -1,0 +1,35 @@
+{
+  "stage": "chunk",
+  "variant": "fixed",
+  "nodes": [
+    {
+      "name": "splitter",
+      "type": "haystack.components.preprocessors.document_splitter.DocumentSplitter",
+      "custom": false,
+      "init_params": [
+        {
+          "name": "split_by",
+          "value": "\"word\""
+        },
+        {
+          "name": "split_length",
+          "value": "200"
+        }
+      ]
+    },
+    {
+      "name": "annotator",
+      "type": "rag_worker.components.chunk_annotator.ChunkAnnotator",
+      "custom": true,
+      "init_params": []
+    }
+  ],
+  "edges": [
+    {
+      "sender": "splitter",
+      "sender_socket": "documents",
+      "receiver": "annotator",
+      "receiver_socket": "documents"
+    }
+  ]
+}

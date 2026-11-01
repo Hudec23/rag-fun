@@ -1,0 +1,132 @@
+openapi: 3.1.0
+info:
+  title: rag-fun api — internal (worker callbacks)
+  version: 1.0.0
+  description: |
+    Producer of requests: worker. Provider: api. Base URL = API_INTERNAL_URL (http://api:8000).
+    Every request carries header `X-Internal-Token: <INTERNAL_TOKEN>`; otherwise 401 UNAUTHORIZED.
+    The worker retries a request on network error or 5xx: 5 attempts, waits 1, 2, 4, 8, 16 s. It never retries 4xx.
+    All endpoints are idempotent.
+servers:
+  - url: http://api:8000
+security:
+  - internalToken: []
+paths:
+  /internal/v1/stage-started:
+    post:
+      operationId: reportStageStarted
+      summary: Worker began a stage run; api sets status running + started_at (only if current status is queued).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StageStarted' }
+            examples:
+              ok: { value: { stage_run_id: 019a4b2c-2100-7c00-9000-000000000003, started_at: '2026-11-01T18:22:05.123Z' } }
+      responses:
+        '204': { description: Stored (or ignored because the stage run is no longer queued). }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/StageRunNotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /internal/v1/stage-results:
+    post:
+      operationId: reportStageResult
+      summary: Final result of a stage run.
+      description: |
+        api behaviour, in one transaction:
+        1. If the stage run's status is already done, failed or stale → 204, change nothing (duplicate delivery).
+        2. Set status, artifact_key, summary, error, started_at (if null), finished_at.
+        3. If status = done and the run has run_all pending stages → enqueue the next stage (see api.yaml run-all).
+           If status = failed → clear the run's run_all plan.
+        4. Publish run.updated (reason stage_result).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StageResult' }
+            examples:
+              done:
+                value:
+                  stage_run_id: 019a4b2c-2100-7c00-9000-000000000003
+                  status: done
+                  artifact_key: 019a4b2c-2000-7c00-9000-000000000002/chunk/v1.json
+                  summary: { stage: chunk, chunks: 42, min_chars: 120, max_chars: 998, mean_chars: 731.5 }
+                  error: null
+                  started_at: '2026-11-01T18:22:05.123Z'
+                  finished_at: '2026-11-01T18:22:07.456Z'
+              failed:
+                value:
+                  stage_run_id: 019a4b2c-2100-7c00-9000-000000000003
+                  status: failed
+                  artifact_key: null
+                  summary: null
+                  error: { code: UNSUPPORTED_FOR_STRATEGY, message: plain_text cannot read image/png, details: { mime: image/png } }
+                  started_at: '2026-11-01T18:22:05.123Z'
+                  finished_at: '2026-11-01T18:22:05.200Z'
+      responses:
+        '204': { description: Stored or ignored as duplicate. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/StageRunNotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /internal/v1/pipeline-graphs/{stage}/{variant}:
+    put:
+      operationId: putPipelineGraph
+      summary: Upsert the Haystack graph for one (stage, variant). Sent by each worker container at startup.
+      parameters:
+        - { name: stage, in: path, required: true, schema: { $ref: '../shared/common.schema.json#/$defs/Stage' } }
+        - { name: variant, in: path, required: true, schema: { type: string, pattern: '^[a-z_]{1,40}$' } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../shared/pipeline-graph.schema.json' }
+      responses:
+        '204': { description: 'Stored. Path stage/variant must equal body stage/variant, else 422.' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+components:
+  securitySchemes:
+    internalToken: { type: apiKey, in: header, name: X-Internal-Token }
+  schemas:
+    StageStarted:
+      type: object
+      additionalProperties: false
+      required: [stage_run_id, started_at]
+      properties:
+        stage_run_id: { $ref: '../shared/common.schema.json#/$defs/Id' }
+        started_at: { $ref: '../shared/common.schema.json#/$defs/Timestamp' }
+    StageResult:
+      type: object
+      additionalProperties: false
+      required: [stage_run_id, status, artifact_key, summary, error, started_at, finished_at]
+      description: status done → artifact_key + summary set, error null. status failed → error set, artifact_key + summary null.
+      properties:
+        stage_run_id: { $ref: '../shared/common.schema.json#/$defs/Id' }
+        status: { type: string, enum: [done, failed] }
+        artifact_key:
+          oneOf: [{ $ref: '../shared/common.schema.json#/$defs/S3Key' }, { type: 'null' }]
+        summary:
+          oneOf: [{ $ref: '../shared/summary.schema.json' }, { type: 'null' }]
+        error:
+          oneOf: [{ $ref: '../shared/common.schema.json#/$defs/ErrorBody' }, { type: 'null' }]
+        started_at: { $ref: '../shared/common.schema.json#/$defs/Timestamp' }
+        finished_at: { $ref: '../shared/common.schema.json#/$defs/Timestamp' }
+  responses:
+    Unauthorized:
+      description: Missing or wrong X-Internal-Token.
+      content:
+        application/json:
+          schema: { $ref: '../shared/common.schema.json#/$defs/Error' }
+          example: { error: { code: UNAUTHORIZED, message: Missing or wrong X-Internal-Token, details: {} } }
+    StageRunNotFound:
+      description: Unknown stage_run_id.
+      content:
+        application/json:
+          schema: { $ref: '../shared/common.schema.json#/$defs/Error' }
+          example: { error: { code: STAGE_RUN_NOT_FOUND, message: Stage run not found, details: { stage_run_id: 019a4b2c-2100-7c00-9000-000000000003 } } }
+    ValidationError:
+      description: Body does not match the schema.
+      content:
+        application/json:
+          schema: { $ref: '../shared/common.schema.json#/$defs/Error' }
+          example: { error: { code: VALIDATION_ERROR, message: Request body or parameters are invalid, details: { field: status } } }

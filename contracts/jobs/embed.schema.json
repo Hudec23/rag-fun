@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/jobs/embed.schema.json",
+  "title": "Job payload: embed",
+  "description": "Producer: api. Consumer: worker (arq queue 'ingest', function name 'embed', called as embed(ctx, payload)). Delivery: at-least-once (arq), idempotency key stage_run_id. Artifact written to artifacts/{run_id}/embed/v{version}.json. On finish the worker POSTs /internal/v1/stage-results, then publishes stage.completed or stage.failed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "stage_run_id",
+    "run_id",
+    "run_kind",
+    "stage",
+    "version",
+    "params",
+    "chunk_artifact_key",
+    "collection"
+  ],
+  "properties": {
+    "stage_run_id": {
+      "$ref": "../shared/common.schema.json#/$defs/Id",
+      "description": "stage_runs.id; idempotency key \u2014 the worker may receive a job twice; the api ignores a second result for a stage run that is already done/failed."
+    },
+    "run_id": {
+      "$ref": "../shared/common.schema.json#/$defs/Id",
+      "description": "ingest_runs.id or query_runs.id."
+    },
+    "run_kind": {
+      "const": "ingest"
+    },
+    "stage": {
+      "const": "embed"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "params": {
+      "$ref": "../shared/common.schema.json#/$defs/EmbedParams"
+    },
+    "chunk_artifact_key": {
+      "$ref": "../shared/common.schema.json#/$defs/S3Key",
+      "description": "Active chunk artifact."
+    },
+    "collection": {
+      "$ref": "../shared/common.schema.json#/$defs/CollectionRef"
+    }
+  },
+  "examples": [
+    {
+      "stage_run_id": "019a4b2c-2100-7c00-9000-000000000003",
+      "run_id": "019a4b2c-2000-7c00-9000-000000000002",
+      "run_kind": "ingest",
+      "stage": "embed",
+      "version": 1,
+      "params": {
+        "batch_size": 16
+      },
+      "chunk_artifact_key": "019a4b2c-2000-7c00-9000-000000000002/chunk/v1.json",
+      "collection": {
+        "id": "019a4b2c-1d00-7b00-8000-0000000000aa",
+        "qdrant_name": "rf_019a4b2c1d007b0080000000000000aa",
+        "dense": {
+          "model": "bge-m3",
+          "dims": 1024,
+          "ollama_url": "http://host.docker.internal:11434"
+        },
+        "sparse_model": "Qdrant/bm25"
+      }
+    }
+  ]
+}

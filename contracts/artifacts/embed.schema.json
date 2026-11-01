@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/artifacts/embed.schema.json",
+  "title": "Embed stage artifact",
+  "description": "Producer: worker embed job. Stored at s3://artifacts/{run_id}/embed/v{version}.json. Consumers: worker store job, api, web embed view. Vectors are NOT in Qdrant yet. All per-chunk arrays are in chunk index order. Floats rounded to 6 decimals. projections/similarity use the sample (≤200 chunks, evenly spaced: indices = round(linspace(0, n-1, min(n,200)))).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "stage", "dense_model", "dense_dims", "max_tokens", "sparse_model", "tokenizer", "chunks", "sample_indices", "projections", "similarity"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "stage": { "const": "embed" },
+    "dense_model": { "$ref": "../shared/common.schema.json#/$defs/DenseModel" },
+    "dense_dims": { "type": "integer", "enum": [384, 768, 1024] },
+    "max_tokens": { "type": "integer", "minimum": 1, "description": "Model context: bge-m3 8192, nomic-embed-text 8192, mxbai-embed-large 512, all-minilm 256." },
+    "sparse_model": { "$ref": "../shared/common.schema.json#/$defs/SparseModel" },
+    "tokenizer": { "type": "string", "enum": ["BAAI/bge-m3", "nomic-ai/nomic-embed-text-v1.5", "mixedbread-ai/mxbai-embed-large-v1", "sentence-transformers/all-MiniLM-L6-v2"] },
+    "chunks": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["index", "doc_id", "dense", "sparse", "tokens", "token_count", "over_limit"],
+        "properties": {
+          "index": { "type": "integer", "minimum": 0 },
+          "doc_id": { "$ref": "../shared/common.schema.json#/$defs/DocId" },
+          "dense": { "type": "array", "items": { "type": "number" }, "minItems": 384, "maxItems": 1024, "description": "Length = dense_dims." },
+          "sparse": {
+            "type": "object", "additionalProperties": false, "required": ["indices", "values"],
+            "properties": {
+              "indices": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
+              "values": { "type": "array", "items": { "type": "number" } }
+            }
+          },
+          "tokens": { "type": "array", "items": { "type": "string" }, "description": "Tokenizer pieces incl. special tokens, max 2048 entries (truncated beyond)." },
+          "token_count": { "type": "integer", "minimum": 0, "description": "Full count incl. special tokens, not truncated." },
+          "over_limit": { "type": "boolean", "description": "token_count > max_tokens (the model silently truncates)." }
+        }
+      }
+    },
+    "sample_indices": { "type": "array", "items": { "type": "integer", "minimum": 0 }, "maxItems": 200 },
+    "projections": {
+      "type": "object", "additionalProperties": false,
+      "required": ["pca2", "pca3", "pca_explained_variance", "umap2", "umap3"],
+      "description": "Row i = sample_indices[i]. PCA via sklearn (random_state=42). UMAP (n_neighbors=min(15, n-1), random_state=42); umap* null when sample size < 5. pca3 null when sample size < 3; pca2 null when sample size < 2.",
+      "properties": {
+        "pca2": { "oneOf": [{ "type": "null" }, { "type": "array", "items": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 } }] },
+        "pca3": { "oneOf": [{ "type": "null" }, { "type": "array", "items": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 } }] },
+        "pca_explained_variance": { "type": "array", "items": { "type": "number", "minimum": 0, "maximum": 1 }, "maxItems": 3 },
+        "umap2": { "oneOf": [{ "type": "null" }, { "type": "array", "items": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 } }] },
+        "umap3": { "oneOf": [{ "type": "null" }, { "type": "array", "items": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 } }] }
+      }
+    },
+    "similarity": {
+      "type": "array",
+      "description": "Cosine similarity matrix over the sample, square, len = len(sample_indices), diagonal = 1.",
+      "items": { "type": "array", "items": { "type": "number", "minimum": -1, "maximum": 1 } }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "run_id": "019a4b2c-2000-7c00-9000-000000000002",
+  "stage_run_id": "019a4b2c-2100-7c00-9000-000000000003",
+  "stage": "chunk",
+  "version": 1,
+  "ts": "2026-11-01T18:22:05.123Z",
+  "artifact_key": "019a4b2c-2000-7c00-9000-000000000002/chunk/v1.json",
+  "summary": {
+    "stage": "chunk",
+    "chunks": 42,
+    "min_chars": 120,
+    "max_chars": 998,
+    "mean_chars": 731.5
+  },
+  "type": "stage.completed"
+}

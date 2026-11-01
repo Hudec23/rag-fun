@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "stage": "generate",
+  "model": {
+    "provider": "ollama",
+    "model": "qwen3:8b"
+  },
+  "messages": [
+    {
+      "role": "system",
+      "content": "Answer the question using only the numbered context passages. ..."
+    },
+    {
+      "role": "user",
+      "content": "Context:\n[1] ...\n\nQuestion: How did revenue change?"
+    }
+  ],
+  "budget": {
+    "max_context_tokens": 4000,
+    "system_tokens": 60,
+    "question_tokens": 8,
+    "used_context_tokens": 75,
+    "chunks_included": 2,
+    "chunks_dropped": 1
+  },
+  "context": [
+    {
+      "n": 1,
+      "hit": {
+        "point_id": "00000000000000000000000000000004",
+        "doc_id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01:00003",
+        "rank": 1,
+        "score": 0.97,
+        "content": "Outlook\n\nWe expect revenue growth to continue in Q4 thanks to the new pricing.\n\nThe board approved a dividend of 0.40 EUR per share.",
+        "meta": {
+          "file_id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01",
+          "batch_id": "019a4b2c-1e00-7b00-8000-000000000001",
+          "batch_name": "Q3 reports",
+          "filename": "q3-report.pdf",
+          "mime": "application/pdf",
+          "tags": [
+            "finance",
+            "q3"
+          ],
+          "page": 2,
+          "page_numbers": [
+            2
+          ],
+          "section_path": [
+            "Outlook"
+          ],
+          "element_type": "text",
+          "chunk_index": 3,
+          "chunk_strategy": "recursive",
+          "parse_strategy": "docling_layout",
+          "ingest_run_id": "019a4b2c-2000-7c00-9000-000000000002",
+          "dense_model": "all-minilm",
+          "sparse_model": "Qdrant/bm25",
+          "stored_at": "2026-11-01T18:22:05.123Z"
+        }
+      },
+      "tokens": 40
+    },
+    {
+      "n": 2,
+      "hit": {
+        "point_id": "00000000000000000000000000000002",
+        "doc_id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01:00001",
+        "rank": 2,
+        "score": 0.88,
+        "content": "Revenue grew 12 percent year over year, driven by subscriptions.\n\nOperating costs stayed flat while headcount increased slightly.",
+        "meta": {
+          "file_id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01",
+          "batch_id": "019a4b2c-1e00-7b00-8000-000000000001",
+          "batch_name": "Q3 reports",
+          "filename": "q3-report.pdf",
+          "mime": "application/pdf",
+          "tags": [
+            "finance",
+            "q3"
+          ],
+          "page": 1,
+          "page_numbers": [
+            1
+          ],
+          "section_path": [
+            "Q3 Report"
+          ],
+          "element_type": "text",
+          "chunk_index": 1,
+          "chunk_strategy": "recursive",
+          "parse_strategy": "docling_layout",
+          "ingest_run_id": "019a4b2c-2000-7c00-9000-000000000002",
+          "dense_model": "all-minilm",
+          "sparse_model": "Qdrant/bm25",
+          "stored_at": "2026-11-01T18:22:05.123Z"
+        }
+      },
+      "tokens": 35
+    }
+  ],
+  "answer": "Revenue grew 12 percent [2] and growth should continue in Q4 [1, 2].",
+  "citations": [
+    1,
+    2
+  ],
+  "usage": {
+    "prompt_tokens": 210,
+    "completion_tokens": 18
+  }
+}

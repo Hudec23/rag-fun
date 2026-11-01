@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/artifacts/rerank.schema.json",
+  "title": "Rerank stage artifact",
+  "description": "Producer: worker rerank job. Stored at s3://artifacts/{run_id}/rerank/v{version}.json. Consumers: worker generate job, api, web. before = retrieve fused hits. after = top_n by cross-encoder score (descending, ties by doc_id) with previous_rank = rank in before. When enabled=false: after = first top_n of before, rerank_score = null, model = null.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "stage", "enabled", "model", "top_n", "query", "before", "after"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "stage": { "const": "rerank" },
+    "enabled": { "type": "boolean" },
+    "model": { "oneOf": [{ "$ref": "../shared/common.schema.json#/$defs/RerankModel" }, { "type": "null" }] },
+    "top_n": { "type": "integer", "minimum": 1, "maximum": 50 },
+    "query": { "type": "string", "description": "Original question (not transformed)." },
+    "before": { "type": "array", "items": { "$ref": "../shared/common.schema.json#/$defs/Hit" } },
+    "after": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["hit", "previous_rank", "rerank_score"],
+        "properties": {
+          "hit": { "$ref": "../shared/common.schema.json#/$defs/Hit", "description": "hit.rank = new rank, hit.score = rerank_score or retrieval score when disabled." },
+          "previous_rank": { "type": "integer", "minimum": 1 },
+          "rerank_score": { "type": ["number", "null"] }
+        }
+      }
+    }
+  }
+}

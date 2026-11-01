@@ -1,0 +1,19 @@
+.DS_Store
+.env
+# python
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+# node
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+# autospec runner
+.autospec/runs/
+.autospec/BLOCKED_REASON

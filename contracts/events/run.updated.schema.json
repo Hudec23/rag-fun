@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/events/run.updated.schema.json",
+  "title": "Event run.updated",
+  "description": "Producer: api. Published on Redis channel 'events:{run_id}' whenever the api changes a run's stage rows itself: a stage run was queued (incl. by run-all chaining), stages were marked stale, or a stage-results callback was stored. Relayed as SSE 'event: run.updated'. Consumer: web \u2014 refetch GET /ingest-runs/{id} or /query-runs/{id}. Delivery: at-most-once.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type",
+    "run_id",
+    "run_kind",
+    "reason",
+    "ts"
+  ],
+  "properties": {
+    "type": {
+      "const": "run.updated"
+    },
+    "run_id": {
+      "$ref": "../shared/common.schema.json#/$defs/Id"
+    },
+    "run_kind": {
+      "$ref": "../shared/common.schema.json#/$defs/RunKind"
+    },
+    "reason": {
+      "type": "string",
+      "enum": [
+        "stage_queued",
+        "stages_stale",
+        "stage_result"
+      ]
+    },
+    "ts": {
+      "$ref": "../shared/common.schema.json#/$defs/Timestamp"
+    }
+  },
+  "examples": [
+    {
+      "type": "run.updated",
+      "run_id": "019a4b2c-2000-7c00-9000-000000000002",
+      "run_kind": "ingest",
+      "reason": "stage_queued",
+      "ts": "2026-11-01T18:22:05.123Z"
+    }
+  ]
+}

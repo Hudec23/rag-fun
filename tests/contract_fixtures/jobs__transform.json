@@ -1,0 +1,18 @@
+{
+  "stage_run_id": "019a4b2c-2100-7c00-9000-000000000003",
+  "run_id": "019a4b2c-2000-7c00-9000-000000000002",
+  "run_kind": "query",
+  "stage": "transform",
+  "version": 1,
+  "params": {
+    "strategy": "multi_query",
+    "num_queries": 3
+  },
+  "question": "How did revenue change in Q3?",
+  "chat": {
+    "provider": "ollama",
+    "model": "qwen3:8b",
+    "base_url": "http://host.docker.internal:11434",
+    "api_key": null
+  }
+}

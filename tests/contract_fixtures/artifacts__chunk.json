@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "stage": "chunk",
+  "strategy": "fixed",
+  "params": {
+    "strategy": "fixed",
+    "split_by": "word",
+    "length": 3,
+    "overlap": 1
+  },
+  "parse_strategy": "plain_text",
+  "source_text": "one two three four five",
+  "chunks": [
+    {
+      "index": 0,
+      "doc_id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01:00000",
+      "text": "one two three ",
+      "char_start": 0,
+      "char_end": 14,
+      "element_ids": [
+        "e-0000"
+      ],
+      "page_numbers": [],
+      "section_path": [],
+      "element_type": "text",
+      "char_count": 14,
+      "token_estimate": 4
+    },
+    {
+      "index": 1,
+      "doc_id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01:00001",
+      "text": "three four five",
+      "char_start": 8,
+      "char_end": 23,
+      "element_ids": [
+        "e-0000"
+      ],
+      "page_numbers": [],
+      "section_path": [],
+      "element_type": "text",
+      "char_count": 15,
+      "token_estimate": 4
+    }
+  ],
+  "stats": {
+    "count": 2,
+    "min_chars": 14,
+    "max_chars": 15,
+    "mean_chars": 14.5,
+    "histogram": {
+      "bin_edges": [
+        14,
+        14.5,
+        15
+      ],
+      "counts": [
+        1,
+        1
+      ]
+    }
+  },
+  "semantic": null
+}

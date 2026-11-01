@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/jobs/generate.schema.json",
+  "title": "Job payload: generate",
+  "description": "Producer: api. Consumer: worker (arq queue 'query', function name 'generate', called as generate(ctx, payload)). Delivery: at-least-once (arq), idempotency key stage_run_id. Artifact written to artifacts/{run_id}/generate/v{version}.json. On finish the worker POSTs /internal/v1/stage-results, then publishes stage.completed or stage.failed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "stage_run_id",
+    "run_id",
+    "run_kind",
+    "stage",
+    "version",
+    "params",
+    "question",
+    "context_artifact_key",
+    "context_source",
+    "chat"
+  ],
+  "properties": {
+    "stage_run_id": {
+      "$ref": "../shared/common.schema.json#/$defs/Id",
+      "description": "stage_runs.id; idempotency key \u2014 the worker may receive a job twice; the api ignores a second result for a stage run that is already done/failed."
+    },
+    "run_id": {
+      "$ref": "../shared/common.schema.json#/$defs/Id",
+      "description": "ingest_runs.id or query_runs.id."
+    },
+    "run_kind": {
+      "const": "query"
+    },
+    "stage": {
+      "const": "generate"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "params": {
+      "$ref": "../shared/common.schema.json#/$defs/GenerateParams"
+    },
+    "question": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "context_artifact_key": {
+      "$ref": "../shared/common.schema.json#/$defs/S3Key",
+      "description": "Active rerank artifact, or active retrieve artifact when rerank was never run."
+    },
+    "context_source": {
+      "type": "string",
+      "enum": [
+        "rerank",
+        "retrieve"
+      ]
+    },
+    "chat": {
+      "$ref": "../shared/common.schema.json#/$defs/ChatModelConfig"
+    }
+  },
+  "examples": [
+    {
+      "stage_run_id": "019a4b2c-2100-7c00-9000-000000000003",
+      "run_id": "019a4b2c-2000-7c00-9000-000000000002",
+      "run_kind": "query",
+      "stage": "generate",
+      "version": 1,
+      "params": {
+        "max_context_tokens": 4000,
+        "temperature": 0.2,
+        "max_answer_tokens": 800
+      },
+      "question": "How did revenue change in Q3?",
+      "context_artifact_key": "019a4b2c-2000-7c00-9000-000000000002/rerank/v1.json",
+      "context_source": "rerank",
+      "chat": {
+        "provider": "ollama",
+        "model": "qwen3:8b",
+        "base_url": "http://host.docker.internal:11434",
+        "api_key": null
+      }
+    }
+  ]
+}

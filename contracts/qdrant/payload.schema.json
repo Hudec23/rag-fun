@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/qdrant/payload.schema.json",
+  "title": "Qdrant point payload",
+  "description": "Payload of every point in a rag-fun Qdrant collection. Producer: worker store stage (via qdrant-haystack, = Document.to_dict(flatten=False) without vectors). Consumers: worker retrieve stage, api Qdrant browser (read-only). Vectors: named dense 'text-dense' (cosine, size = collection dense dims), named sparse 'text-sparse' (IDF modifier). Point id = uuid5(3896d314-1e95-4a3a-b45a-945f9f0b541d, id) as 32 hex. Indexed (keyword): meta.file_id, meta.batch_id, meta.tags, meta.mime, meta.element_type, meta.chunk_strategy, meta.parse_strategy; (integer): meta.page, meta.chunk_index.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "content", "blob", "meta", "score"],
+  "properties": {
+    "id": { "$ref": "../shared/common.schema.json#/$defs/DocId" },
+    "content": { "type": "string", "minLength": 1, "description": "Chunk text exactly as embedded." },
+    "blob": { "type": "null", "description": "Always null (Haystack field, unused)." },
+    "score": { "type": "null", "description": "Always null when stored (Haystack field)." },
+    "meta": { "$ref": "#/$defs/Meta" }
+  },
+  "$defs": {
+    "Meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file_id", "batch_id", "batch_name", "filename", "mime", "tags", "page", "page_numbers", "section_path",
+        "element_type", "chunk_index", "chunk_strategy", "parse_strategy", "ingest_run_id", "dense_model", "sparse_model", "stored_at"
+      ],
+      "properties": {
+        "file_id": { "$ref": "../shared/common.schema.json#/$defs/Id" },
+        "batch_id": { "$ref": "../shared/common.schema.json#/$defs/Id" },
+        "batch_name": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "filename": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "mime": { "$ref": "../shared/common.schema.json#/$defs/Mime" },
+        "tags": { "$ref": "../shared/common.schema.json#/$defs/Tags", "description": "Union of file tags and batch tags, sorted." },
+        "page": { "type": ["integer", "null"], "minimum": 1, "description": "First page of the chunk; null for formats without pages." },
+        "page_numbers": { "type": "array", "items": { "type": "integer", "minimum": 1 }, "uniqueItems": true, "description": "All pages the chunk touches, ascending." },
+        "section_path": { "type": "array", "items": { "type": "string", "maxLength": 300 }, "maxItems": 10, "description": "Heading hierarchy, outermost first. Empty when unknown." },
+        "element_type": { "$ref": "../shared/common.schema.json#/$defs/ChunkElementType" },
+        "chunk_index": { "type": "integer", "minimum": 0 },
+        "chunk_strategy": { "$ref": "../shared/common.schema.json#/$defs/ChunkStrategy" },
+        "parse_strategy": { "$ref": "../shared/common.schema.json#/$defs/ParseStrategy" },
+        "ingest_run_id": { "$ref": "../shared/common.schema.json#/$defs/Id" },
+        "dense_model": { "$ref": "../shared/common.schema.json#/$defs/DenseModel" },
+        "sparse_model": { "$ref": "../shared/common.schema.json#/$defs/SparseModel" },
+        "stored_at": { "$ref": "../shared/common.schema.json#/$defs/Timestamp" }
+      }
+    }
+  },
+  "examples": [
+    {
+      "id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01:00003",
+      "content": "Revenue grew 12% year over year, driven by subscriptions.",
+      "blob": null,
+      "score": null,
+      "meta": {
+        "file_id": "019a4b2c-1f00-7a3e-9c11-2b7f4e5d6a01",
+        "batch_id": "019a4b2c-1e00-7b00-8000-000000000001",
+        "batch_name": "Q3 reports",
+        "filename": "q3-report.pdf",
+        "mime": "application/pdf",
+        "tags": ["finance", "q3"],
+        "page": 2,
+        "page_numbers": [2],
+        "section_path": ["Results", "Revenue"],
+        "element_type": "text",
+        "chunk_index": 3,
+        "chunk_strategy": "recursive",
+        "parse_strategy": "docling_layout",
+        "ingest_run_id": "019a4b2c-2000-7c00-9000-000000000002",
+        "dense_model": "bge-m3",
+        "sparse_model": "Qdrant/bm25",
+        "stored_at": "2026-11-01T18:22:05.123Z"
+      }
+    }
+  ]
+}

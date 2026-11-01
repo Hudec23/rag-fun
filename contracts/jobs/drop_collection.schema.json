@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragfun.local/contracts/jobs/drop_collection.schema.json",
+  "title": "Job payload: drop_collection",
+  "description": "Producer: api (DELETE /collections/{id}, after the row is deleted). Consumer: worker (queue 'query', function 'drop_collection'). Deletes the Qdrant collection if it exists; no result callback, no events. Idempotent.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "qdrant_name"
+  ],
+  "properties": {
+    "qdrant_name": {
+      "type": "string",
+      "pattern": "^rf_[0-9a-f]{32}$"
+    }
+  },
+  "examples": [
+    {
+      "qdrant_name": "rf_019a4b2c1d007b0080000000000000aa"
+    }
+  ]
+}

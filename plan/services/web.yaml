@@ -1,0 +1,15 @@
+# plan/services/web.yaml
+name: web
+path: services/web
+language: typescript
+commands:
+  setup: docker compose -f docker-compose.dev.yml run --rm web-dev npm ci
+  build: docker compose -f docker-compose.dev.yml run --rm web-dev npm run build        # tsc -b && vite build
+  lint:  docker compose -f docker-compose.dev.yml run --rm web-dev npm run lint         # prettier --check . && eslint .
+  test:  docker compose -f docker-compose.dev.yml run --rm web-dev npx vitest run       # full suite; green only once every task is done
+  # {files} = space-separated paths RELATIVE TO services/web
+  test_files: docker compose -f docker-compose.dev.yml run --rm web-dev npx vitest run {files}
+baseline_tests:
+  - services/web/tests/app/App.test.tsx
+  - services/web/tests/pages/CollectionsPage.test.tsx
+regression: [build, lint, baseline_tests, done_tests]

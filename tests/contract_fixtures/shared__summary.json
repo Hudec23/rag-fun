@@ -1,0 +1,7 @@
+{
+  "stage": "chunk",
+  "chunks": 42,
+  "min_chars": 120,
+  "max_chars": 998,
+  "mean_chars": 731.5
+}
