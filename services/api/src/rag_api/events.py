@@ -1,5 +1,7 @@
 """Redis pub/sub on channel 'events:{run_id}' (contracts/events/*.schema.json)."""
 
+import asyncio
+import json
 from collections.abc import AsyncIterator
 from typing import Any, Protocol
 
@@ -21,10 +23,26 @@ class RedisEventBus:
         self.redis = redis  # redis.asyncio.Redis
 
     async def publish(self, run_id: str, event: dict[str, Any]) -> None:
-        raise NotImplementedError("not implemented")
+        await self.redis.publish(channel(run_id), json.dumps(event))
 
-    def subscribe(self, run_id: str) -> AsyncIterator[dict[str, Any]]:
-        raise NotImplementedError("not implemented")
+    async def subscribe(self, run_id: str) -> AsyncIterator[dict[str, Any]]:
+        """Yields every event published on the run's channel after subscribing, parsed from JSON."""
+        pubsub = self.redis.pubsub()
+        try:
+            await pubsub.subscribe(channel(run_id))
+            while True:
+                message = await pubsub.get_message(ignore_subscribe_messages=True)
+                if message is None:
+                    await asyncio.sleep(0.01)
+                    continue
+                try:
+                    event = json.loads(message["data"])
+                except ValueError:
+                    continue
+                if isinstance(event, dict):
+                    yield event
+        finally:
+            await pubsub.aclose()
 
 
 def run_updated_event(run_id: str, run_kind: str, reason: str, ts: str) -> dict[str, Any]:
