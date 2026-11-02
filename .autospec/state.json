@@ -44,7 +44,7 @@
       "reason": "agent blocked: T-api-007 is blocked by a bug in the locked test itself (no implementation of the editable file can pass it).\n\nFailing test: services/api/tests/integration/test_qdrant_reader.py, test_scroll_pages_with_filter, line 119:\n    assert {first.points[0].payload, second.points[0].payload} == {payloads[0]}\n\nWhy it can never pass:\n1. QdrantPoint.payload is typed `dict[str, Any]` in services/api/src/rag_api/schemas/qdrant.py\n   (not in this task's edit list). Pydantic therefore always stores a plain Python dict.\n2. The right-hand side `{payloads[0]}` builds a set from the fixture's plain dict\n   (tests/contract_fixtures/qdrant__payload.json), which no implementation touches.\n3. In CPython, building a set from dict elements always raises\n   `TypeError: unhashable type: 'dict'` \u2014 verified in the api-dev container:\n   `{d1, d2}` with plain dicts raises, and `{QdrantPoint(id=..., payload={...}).payload}` raises.\n   The LHS set literal raises before the `==` is even evaluated.\n\nState of the implementation (services/api/src/rag_api/qdrant_read.py, the only editable file):\n- Complete: info/scroll/count/facet/get_point implemented per the locked test expectations.\n- Verify commands pass: `ruff format --check`, `ruff check`, `mypy src` (all clean).\n- 6 of 7 locked tests pass (test_info_on_missing_collection, test_info_on_seeded_collection,\n  test_scroll_with_vectors, test_count_with_and_without_filter, test_facet_tags,\n  test_get_point_existing_and_unknown); tests/unit/test_qdrant_filter.py all pass too.\n- test_scroll_pages_with_filter passes everything through line 118 (pagination, filters,\n  next_offset, point ids, vectors=None); it fails at line 119 with the TypeError above.\n\nSuggested fix for the planner (test-only change, e.g.):\n    assert first.points[0].payload == payloads[0] and second.points[0].payload == payloads[0]\nor compare JSON-serialized strings instead of putting dicts in a set literal."
     },
     "T-api-008t": {
-      "status": "pending"
+      "status": "done"
     },
     "T-api-008": {
       "status": "pending"
@@ -125,7 +125,8 @@
       "status": "pending"
     },
     "T-api-021": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-007 is blocked"
     },
     "T-api-022t": {
       "status": "pending"
@@ -587,7 +588,8 @@
       "status": "pending"
     },
     "T-web-032": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-007 is blocked"
     },
     "T-web-033t": {
       "status": "pending"
@@ -635,7 +637,8 @@
       "status": "pending"
     },
     "T-web-040": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-007 is blocked"
     },
     "T-web-041t": {
       "status": "pending"
