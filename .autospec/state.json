@@ -174,7 +174,8 @@
       "status": "done"
     },
     "T-worker-003t": {
-      "status": "pending"
+      "status": "blocked",
+      "reason": "failed 3 attempts; last: agent exited (130) without changing any file"
     },
     "T-worker-003": {
       "status": "pending"
