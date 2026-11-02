@@ -215,7 +215,8 @@
       "status": "done"
     },
     "T-worker-009": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-008 is blocked"
     },
     "T-worker-010t": {
       "status": "done"
@@ -263,7 +264,8 @@
       "status": "done"
     },
     "T-worker-017": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-009 is skipped"
     },
     "T-worker-018t": {
       "status": "done"
@@ -293,7 +295,8 @@
       "status": "done"
     },
     "T-worker-022": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-009 is skipped"
     },
     "T-worker-023t": {
       "status": "done"
@@ -308,10 +311,11 @@
       "status": "done"
     },
     "T-worker-025t": {
-      "status": "pending"
+      "status": "done"
     },
     "T-worker-025": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-009 is skipped"
     },
     "T-worker-026t": {
       "status": "pending"
@@ -323,7 +327,8 @@
       "status": "pending"
     },
     "T-worker-027": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-009 is skipped"
     },
     "T-worker-028t": {
       "status": "pending"
@@ -335,7 +340,8 @@
       "status": "pending"
     },
     "T-worker-029": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-009 is skipped"
     },
     "T-worker-030t": {
       "status": "pending"
@@ -359,7 +365,8 @@
       "status": "pending"
     },
     "T-worker-033": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-009 is skipped"
     },
     "T-worker-034t": {
       "status": "pending"
@@ -371,7 +378,8 @@
       "status": "pending"
     },
     "T-worker-035": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-009 is skipped"
     },
     "T-worker-036t": {
       "status": "pending"
@@ -389,7 +397,8 @@
       "status": "pending"
     },
     "T-worker-038": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-009 is skipped"
     },
     "T-worker-039t": {
       "status": "pending"
@@ -437,7 +446,8 @@
       "status": "pending"
     },
     "T-web-006": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-008 is blocked"
     },
     "T-web-007t": {
       "status": "pending"
@@ -575,43 +585,50 @@
       "status": "pending"
     },
     "T-web-029": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-008 is blocked"
     },
     "T-web-030t": {
       "status": "pending"
     },
     "T-web-030": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-008 is blocked"
     },
     "T-web-031t": {
       "status": "pending"
     },
     "T-web-031": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-008 is blocked"
     },
     "T-web-032t": {
       "status": "pending"
     },
     "T-web-032": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-008 is blocked"
     },
     "T-web-033t": {
       "status": "pending"
     },
     "T-web-033": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-008 is blocked"
     },
     "T-web-034t": {
       "status": "pending"
     },
     "T-web-034": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-008 is blocked"
     },
     "T-web-035t": {
       "status": "pending"
     },
     "T-web-035": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-008 is blocked"
     },
     "T-web-036t": {
       "status": "pending"
@@ -635,13 +652,15 @@
       "status": "pending"
     },
     "T-web-039": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-web-006 is skipped"
     },
     "T-web-040t": {
       "status": "pending"
     },
     "T-web-040": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-008 is blocked"
     },
     "T-web-041t": {
       "status": "pending"
@@ -659,7 +678,8 @@
       "status": "pending"
     },
     "T-web-043": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-web-006 is skipped"
     }
   }
 }
