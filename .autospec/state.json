@@ -344,7 +344,7 @@
       "reason": "dependency T-worker-009 is skipped"
     },
     "T-worker-030t": {
-      "status": "pending"
+      "status": "done"
     },
     "T-worker-030": {
       "status": "pending"
