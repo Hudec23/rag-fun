@@ -1,6 +1,6 @@
 # autospec — AI-agent planning kit
 
-A set of structured prompts and templates for designing a multi-service system so a weak local model can implement it unattended. You bring the runner (e.g. [opencode-docker](https://github.com/Hudec23/opencode-docker)).
+A set of structured prompts and templates for designing a multi-service system so a weak local model can implement it unattended. You bring the runner (e.g. [opencodocker](https://github.com/Hudec23/opencodocker)).
 
 ```
 planning/          Claude prompts — run in order during phase 1
@@ -53,7 +53,7 @@ python3 scripts/autospec-run.py --only T-api-001t  # one task
 python3 scripts/autospec-run.py                    # loop until nothing is runnable
 ```
 
-Run it from a terminal (opencode-docker uses `docker run -it`). Logs land in `.autospec/runs/<task>/`. opencode picks up `AGENTS.md` from the project root automatically. Blocked tasks: `planning/05-unblock.md`.
+Run it from a terminal (opencodocker uses `docker run -it`). Logs land in `.autospec/runs/<task>/`. opencode picks up `AGENTS.md` from the project root automatically. Blocked tasks: `planning/05-unblock.md`.
 
 ## What each rule produces
 
