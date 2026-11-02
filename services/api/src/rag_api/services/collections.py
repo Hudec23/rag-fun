@@ -1,12 +1,12 @@
 """Collections (R-012). Example module for the house style: get_collection is implemented."""
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from rag_api.catalog import DENSE_MODELS
-from rag_api.db.models import CollectionRow
+from rag_api.db.models import CollectionRow, IngestRunRow, QueryRunRow, StageRunRow
 from rag_api.errors import AppError
-from rag_api.ids import to_iso
+from rag_api.ids import new_id, to_iso, utcnow
 from rag_api.queue import JobQueue
 from rag_api.schemas.collections import CollectionCreate, CollectionList, CollectionOut
 
@@ -58,11 +58,50 @@ async def create_collection(session: AsyncSession, body: CollectionCreate) -> Co
     """Insert a row: id = new_id(), qdrant_name = qdrant_name_for(id), dense_dims from
     catalog.DENSE_MODELS[body.dense_model][0], created_at = utcnow(). Name already used ->
     AppError('COLLECTION_NAME_TAKEN', details={'name': name}). Flush (no commit) and return to_out."""
-    _ = DENSE_MODELS
-    raise NotImplementedError("not implemented")
+    existing = (
+        await session.execute(select(CollectionRow).where(CollectionRow.name == body.name))
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise AppError("COLLECTION_NAME_TAKEN", details={"name": body.name})
+    cid = new_id()
+    row = CollectionRow(
+        id=cid,
+        name=body.name,
+        qdrant_name=qdrant_name_for(cid),
+        dense_model=body.dense_model,
+        dense_dims=DENSE_MODELS[body.dense_model][0],
+        sparse_model=body.sparse_model,
+        created_at=utcnow(),
+    )
+    session.add(row)
+    await session.flush()
+    return to_out(row)
 
 
 async def delete_collection(session: AsyncSession, queue: JobQueue, collection_id: str) -> None:
     """Load (404 COLLECTION_NOT_FOUND), delete stage_runs of its ingest + query runs, delete the row
     (runs cascade), flush, then enqueue('drop_collection', {'qdrant_name': ...}, 'query')."""
-    raise NotImplementedError("not implemented")
+    row = await load_collection(session, collection_id)
+    qdrant_name = row.qdrant_name
+    ingest_ids = [
+        run.id
+        for run in (
+            await session.scalars(
+                select(IngestRunRow).where(IngestRunRow.collection_id == collection_id)
+            )
+        ).all()
+    ]
+    query_ids = [
+        run.id
+        for run in (
+            await session.scalars(
+                select(QueryRunRow).where(QueryRunRow.collection_id == collection_id)
+            )
+        ).all()
+    ]
+    run_ids = [*ingest_ids, *query_ids]
+    if run_ids:
+        await session.execute(delete(StageRunRow).where(StageRunRow.run_id.in_(run_ids)))
+    await session.delete(row)
+    await session.flush()
+    await queue.enqueue("drop_collection", {"qdrant_name": qdrant_name}, "query")
