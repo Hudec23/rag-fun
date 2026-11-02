@@ -237,6 +237,12 @@ def do_task(tid: str, runner: str, session_timeout: int) -> tuple[str, str]:
     feedback = run_dir / "feedback.txt"
     BLOCKED.unlink(missing_ok=True)
     snap = snapshot()
+    pre_dirty = sorted(set(task["edit"]) & set(snap))
+    if pre_dirty:  # changes are measured against the snapshot, so these would look untouched
+        sys.exit(
+            f"[autospec-run] {tid}: files under `edit:` already have uncommitted changes: "
+            f"{', '.join(pre_dirty)}\nCommit, stash or discard them (git status), then run again."
+        )
     reason = ""
 
     for attempt in range(1, task["max_attempts"] + 1):
