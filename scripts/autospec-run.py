@@ -5,6 +5,7 @@ For each pending task in .autospec/state.json whose depends_on are all done:
   1. start a fresh opencode session for that one task (via the opencode-docker run.sh),
   2. check that only files under the task's `edit:` changed (other changes are reverted),
   3. run the task's `verify:` (must pass) and `expect_fail:` (must fail) commands itself,
+     inside the agent's dind container (same image cache and volumes the agent built with),
   4. pass -> commit the task's files + state.json, status done;
      fail -> retry with the failing output as feedback, up to max_attempts;
      then revert, status blocked. Tasks depending on a blocked task become skipped.
@@ -227,13 +228,44 @@ def tail(log: Path, n: int = FEEDBACK_LINES) -> str:
     return "\n".join(log.read_text(errors="replace").splitlines()[-n:])
 
 
+def dind_name() -> str:
+    """The dind container run.sh starts for this project (instance = sanitized project basename)."""
+    instance = re.sub(r"[^a-z0-9-]+", "-", ROOT.name.lower()).strip("-")
+    return os.environ.get("AUTOSPEC_DIND", f"oc-dind-{instance}")
+
+
+def dind_for_checks() -> str | None:
+    """Running dind container that mounts this project, or None (checks then use host Docker)."""
+    name = dind_name()
+    r = subprocess.run(
+        ["docker", "inspect", "-f", '{{.State.Running}} {{index .Config.Labels "opencode.project"}}', name],
+        capture_output=True, text=True,
+    )
+    running, _, project = r.stdout.strip().partition(" ")
+    if r.returncode != 0 or running != "true" or project != str(ROOT):
+        print(f"[autospec-run] warning: {name} not running for {ROOT}; checks use host Docker (cold cache)")
+        return None
+    return name
+
+
 def check(task: dict, log: Path) -> str | None:
-    """Run verify (must pass) and expect_fail (must fail). Returns a failure message or None."""
+    """Run verify (must pass) and expect_fail (must fail). Returns a failure message or None.
+
+    Commands run inside the agent's dind container (project mounted at /workspace), so they reuse
+    the images and volumes the agent already built instead of rebuilding on the host engine.
+    """
+    dind = dind_for_checks()
+
+    def run(cmd: str) -> int:
+        if dind:
+            return run_logged(["docker", "exec", "-w", "/workspace", dind, "sh", "-c", cmd], log, CHECK_TIMEOUT)
+        return run_logged(cmd, log, CHECK_TIMEOUT, shell=True)
+
     for cmd in task["verify"]:
-        if run_logged(cmd, log, CHECK_TIMEOUT, shell=True) != 0:
+        if run(cmd) != 0:
             return f"verify failed: {cmd}"
     for cmd in task["expect_fail"]:
-        if run_logged(cmd, log, CHECK_TIMEOUT, shell=True) == 0:
+        if run(cmd) == 0:
             return f"expect_fail passed but must fail (tests not red against the stub): {cmd}"
     return None
 
