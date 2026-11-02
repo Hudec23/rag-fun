@@ -216,7 +216,7 @@
       "reason": "dependency T-worker-006 is blocked"
     },
     "T-worker-009t": {
-      "status": "pending"
+      "status": "done"
     },
     "T-worker-009": {
       "status": "skipped",
