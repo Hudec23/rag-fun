@@ -394,7 +394,8 @@
       "status": "done"
     },
     "T-worker-038t": {
-      "status": "pending"
+      "status": "blocked",
+      "reason": "failed 3 attempts; last: agent exited (1) without changing any file"
     },
     "T-worker-038": {
       "status": "skipped",
