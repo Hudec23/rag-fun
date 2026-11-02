@@ -178,7 +178,7 @@
       "status": "done"
     },
     "T-worker-003t": {
-      "status": "pending"
+      "status": "done"
     },
     "T-worker-003": {
       "status": "pending"
@@ -488,13 +488,15 @@
       "status": "pending"
     },
     "T-web-014": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-026 is blocked"
     },
     "T-web-015t": {
       "status": "pending"
     },
     "T-web-015": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-026 is blocked"
     },
     "T-web-016t": {
       "status": "pending"
@@ -639,7 +641,8 @@
       "status": "pending"
     },
     "T-web-038": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-026 is blocked"
     },
     "T-web-039t": {
       "status": "pending"
@@ -659,13 +662,15 @@
       "status": "pending"
     },
     "T-web-041": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-026 is blocked"
     },
     "T-web-042t": {
       "status": "pending"
     },
     "T-web-042": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-026 is blocked"
     },
     "T-web-043t": {
       "status": "pending"
