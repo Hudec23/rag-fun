@@ -125,15 +125,30 @@ u(13, "F-stage-flow", "stage state machine (latest/active/downstream/check/stale
   "start_stage clears run.run_all_plan unless keep_plan=True",
   "stage_run_out formats timestamps with to_iso and keeps None",
 ], intro=INFRA + " Create runs by inserting FileRow/BatchRow/IngestRunRow/QueryRunRow/StageRunRow directly.", deps=["T-api-004", "T-api-005"])
-u(14, "F-stage-flow", "build_payload for all 8 stages", "services/job_payloads.py", "integration/test_job_payloads.py", ["envelope", "file_block", "build_payload"], [
+PAYLOAD_INTRO = (INFRA + " Insert stage rows with status done and artifact_key set to simulate active upstream stages;"
+    " use add_settings + add_collection. Stage params for those rows: copy `params` from the contract fixtures, e.g."
+    " `json.loads((FIXTURES / 'jobs__chunk.json').read_text())['params']` (`from tests.conftest import FIXTURES`;"
+    " one file per stage: jobs__parse.json, jobs__chunk.json, jobs__embed.json, jobs__store.json, jobs__transform.json,"
+    " jobs__retrieve.json, jobs__rerank.json, jobs__generate.json). Check payloads only with"
+    " `errors(payload, 'jobs/<stage>.schema.json') == []`. Do not open anything under contracts/: the fixtures and this"
+    " task contain everything you need.")
+# Split in two pairs (T-api-014 ingest, T-api-027 query): one task for all 8 stages
+# overflowed the executor's context (it read every job schema).
+u(14, "F-stage-flow", "build_payload for the ingest stages", "services/job_payloads.py", "integration/test_job_payloads.py", ["envelope", "file_block", "build_payload"], [
   "envelope(row) == {'stage_run_id', 'run_id', 'run_kind', 'stage', 'version'} from the row",
   "file_block: tags = sorted union of file tags ['b'] and batch tags ['a','b'] → ['a','b']; s3_key and batch_name copied",
   "parse payload validates against contracts jobs/parse.schema.json (errors(payload, 'jobs/parse.schema.json') == [])",
   "chunk payload: parse_artifact_key = active parse row's artifact_key; dense == {'model': 'bge-m3', 'dims': 1024, 'ollama_url': settings ollama url}; validates",
   "embed + store payloads validate; store parse_strategy/chunk_strategy come from the active parse/chunk params",
-  "transform/generate payload 'chat' == app_settings.resolve_chat; generate context_source 'rerank' when rerank active else 'retrieve' with the matching artifact key",
-  "retrieve payload transform_artifact_key None when transform never ran; rerank payload model == settings reranker_model",
-], intro=INFRA + " Insert stage rows with status done and artifact_key set to simulate active upstream stages; use add_settings + add_collection.", deps=["T-api-012", "T-api-013"])
+], intro=PAYLOAD_INTRO, deps=["T-api-012", "T-api-013"])
+u(27, "F-stage-flow", "build_payload for the query stages", "services/job_payloads.py", "integration/test_job_payloads_query.py", ["envelope", "build_payload"], [
+  "transform payload validates (errors(payload, 'jobs/transform.schema.json') == []) and payload['chat'] == app_settings.resolve_chat(settings row)",
+  "generate payload 'chat' == app_settings.resolve_chat; context_source 'rerank' with the rerank row's artifact_key when rerank is active",
+  "generate payload context_source 'retrieve' with the retrieve row's artifact_key when rerank never ran",
+  "retrieve payload transform_artifact_key is None when transform never ran; validates against jobs/retrieve.schema.json",
+  "rerank payload model == settings reranker_model; validates against jobs/rerank.schema.json",
+], intro=PAYLOAD_INTRO + " Create a query run (QueryRunRow) for these stages. The ingest stages are already implemented (T-api-014); keep their tests green.",
+   deps=["T-api-014"], accept=[T + "integration/test_job_payloads.py"])
 u(15, "F-stage-flow", "run-all plans", "services/run_all.py", "integration/test_run_all.py", ["first_not_done", "start_run_all", "advance_plan"], [
   "first_not_done(['parse','chunk','embed','store'], {}) == 'parse'; {'parse': 'done', 'chunk': 'failed'} → 'chunk'; all done → None",
   "start_run_all(ingest run, None, params) with nothing run → returns True, queue.jobs[0][0] == 'parse', run.run_all_plan == [{'stage': 'chunk', 'params': …}, {'stage': 'embed', …}, {'stage': 'store', …}]",

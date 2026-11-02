@@ -40,8 +40,7 @@
       "status": "done"
     },
     "T-api-007": {
-      "status": "blocked",
-      "reason": "agent blocked: T-api-007 is blocked by a bug in the locked test itself (no implementation of the editable file can pass it).\n\nFailing test: services/api/tests/integration/test_qdrant_reader.py, test_scroll_pages_with_filter, line 119:\n    assert {first.points[0].payload, second.points[0].payload} == {payloads[0]}\n\nWhy it can never pass:\n1. QdrantPoint.payload is typed `dict[str, Any]` in services/api/src/rag_api/schemas/qdrant.py\n   (not in this task's edit list). Pydantic therefore always stores a plain Python dict.\n2. The right-hand side `{payloads[0]}` builds a set from the fixture's plain dict\n   (tests/contract_fixtures/qdrant__payload.json), which no implementation touches.\n3. In CPython, building a set from dict elements always raises\n   `TypeError: unhashable type: 'dict'` \u2014 verified in the api-dev container:\n   `{d1, d2}` with plain dicts raises, and `{QdrantPoint(id=..., payload={...}).payload}` raises.\n   The LHS set literal raises before the `==` is even evaluated.\n\nState of the implementation (services/api/src/rag_api/qdrant_read.py, the only editable file):\n- Complete: info/scroll/count/facet/get_point implemented per the locked test expectations.\n- Verify commands pass: `ruff format --check`, `ruff check`, `mypy src` (all clean).\n- 6 of 7 locked tests pass (test_info_on_missing_collection, test_info_on_seeded_collection,\n  test_scroll_with_vectors, test_count_with_and_without_filter, test_facet_tags,\n  test_get_point_existing_and_unknown); tests/unit/test_qdrant_filter.py all pass too.\n- test_scroll_pages_with_filter passes everything through line 118 (pagination, filters,\n  next_offset, point ids, vectors=None); it fails at line 119 with the TypeError above.\n\nSuggested fix for the planner (test-only change, e.g.):\n    assert first.points[0].payload == payloads[0] and second.points[0].payload == payloads[0]\nor compare JSON-serialized strings instead of putting dicts in a set literal."
+      "status": "pending"
     },
     "T-api-008t": {
       "status": "done"
@@ -80,12 +79,16 @@
       "status": "done"
     },
     "T-api-014t": {
-      "status": "blocked",
-      "reason": "failed 3 attempts; last: agent exited (1) without changing any file"
+      "status": "pending"
     },
     "T-api-014": {
-      "status": "skipped",
-      "reason": "dependency T-api-014t is blocked"
+      "status": "pending"
+    },
+    "T-api-027t": {
+      "status": "pending"
+    },
+    "T-api-027": {
+      "status": "pending"
     },
     "T-api-015t": {
       "status": "done"
@@ -127,8 +130,7 @@
       "status": "done"
     },
     "T-api-021": {
-      "status": "skipped",
-      "reason": "dependency T-api-007 is blocked"
+      "status": "pending"
     },
     "T-api-022t": {
       "status": "done"
@@ -158,8 +160,7 @@
       "status": "done"
     },
     "T-api-026": {
-      "status": "blocked",
-      "reason": "agent blocked: Task T-api-026 is blocked: verify command 2 cannot pass from the allowed edit scope\n(edit: services/api/src/rag_api/services/bootstrap.py only).\n\nImplementation state:\n- verify 1 (ruff format --check, ruff check, mypy src): PASS.\n- verify 2 (pytest tests/integration/test_bootstrap_seed.py): 3/4 pass \u2014 all three\n  `seed` tests green. test_run_migrations_creates_all_tables_and_second_run_is_no_op\n  fails deterministically in the TEST'S OWN `finally`, not in the implementation:\n  ObjectInUseError: database \"ragfun_mig_\u2026\" is being accessed by other users.\n\nRoot cause (measured in the api-dev image, reproduced twice):\n1. The test creates `eng = make_engine(mig_url)` (test line 129) and queries with it.\n   Each `async with eng.connect()` returns the asyncpg session to the pool \u2014 still open.\n2. The test's `finally` runs `DROP DATABASE` (line 143) BEFORE `await eng.dispose()`\n   (line 144). At DROP time, `eng`'s pool holds one idle open session on the throwaway\n   DB, and PostgreSQL refuses to drop a database that has other connected sessions.\n3. `run_migrations` leaks nothing: a standalone diagnostic showed 0 backends on the\n   throwaway DB after `run_migrations` returns, and exactly 1 (owned by the test's\n   `eng`) after the test's own `_public_table_names(eng)` call. The DROP then fails\n   with \"There is 1 other session using the database\".\n\nWhy no implementation of run_migrations(database_url) inside bootstrap.py can fix it:\n- The last `run_migrations` call (test line 139) precedes the final two queries\n  (lines 140-141); anything done to server-side session state is undone, because\n  those queries check out a pooled connection that stays open until the DROP.\n- The only remaining lever (server-side `idle_session_timeout` for new backends) is\n  (a) outside the docstring'd contract (\"alembic upgrade head programmatically\"),\n  (b) timing-flaky \u2014 the window between the last query and the DROP is milliseconds,\n  (c) ineffective for the already-open idle session anyway.\n- `make_engine` (pool config) is in rag_api/db/session.py (not in edit scope), and the\n  test file is locked (\"never modify a test file that existed before this task started\").\n\nProposed fix for the planner (one-line reorder in the locked test):\nin tests/integration/test_bootstrap_seed.py lines 142-144, run\n`await eng.dispose()` BEFORE `_autocommit(admin_url, \"DROP DATABASE \u2026\")`.\nThe implementation assertions (test lines 134-141) already pass; only the cleanup\nDROP fails. After the reorder, the current bootstrap.py implementation passes\nverify 2 in full.\n\nNote: the red-first task (T-api-026t) only required this test to be red against the\nstub \u2014 with the stub, the body raises before any query runs, so the `finally` DROP\nsucceeds and the ordering bug stays latent. It only manifests once a real\nimplementation exists.\n\nVerify 3 (e2e) was not runnable in the executor shell (no `docker compose`). The e2e\ntest exercises the api startup wiring in rag_api/main.py lifespan (lines 53-55:\n`asyncio.to_thread(bootstrap.run_migrations, cfg.database_url)` then `bootstrap.seed`),\nwhich matches this implementation; no throwaway-DB pattern is involved there."
+      "status": "pending"
     },
     "T-worker-001t": {
       "status": "done"
@@ -309,8 +310,7 @@
       "status": "pending"
     },
     "T-worker-025": {
-      "status": "skipped",
-      "reason": "dependency T-worker-024 is skipped"
+      "status": "pending"
     },
     "T-worker-026t": {
       "status": "pending"
@@ -394,8 +394,7 @@
       "status": "pending"
     },
     "T-worker-039": {
-      "status": "skipped",
-      "reason": "dependency T-worker-024 is skipped"
+      "status": "pending"
     },
     "T-worker-040t": {
       "status": "pending"
@@ -437,8 +436,7 @@
       "status": "pending"
     },
     "T-web-006": {
-      "status": "skipped",
-      "reason": "dependency T-api-014 is skipped"
+      "status": "pending"
     },
     "T-web-007t": {
       "status": "pending"
@@ -486,15 +484,13 @@
       "status": "pending"
     },
     "T-web-014": {
-      "status": "skipped",
-      "reason": "dependency T-api-026 is blocked"
+      "status": "pending"
     },
     "T-web-015t": {
       "status": "pending"
     },
     "T-web-015": {
-      "status": "skipped",
-      "reason": "dependency T-api-026 is blocked"
+      "status": "pending"
     },
     "T-web-016t": {
       "status": "pending"
@@ -578,50 +574,43 @@
       "status": "pending"
     },
     "T-web-029": {
-      "status": "skipped",
-      "reason": "dependency T-api-014 is skipped"
+      "status": "pending"
     },
     "T-web-030t": {
       "status": "pending"
     },
     "T-web-030": {
-      "status": "skipped",
-      "reason": "dependency T-api-014 is skipped"
+      "status": "pending"
     },
     "T-web-031t": {
       "status": "pending"
     },
     "T-web-031": {
-      "status": "skipped",
-      "reason": "dependency T-api-014 is skipped"
+      "status": "pending"
     },
     "T-web-032t": {
       "status": "pending"
     },
     "T-web-032": {
-      "status": "skipped",
-      "reason": "dependency T-api-007 is blocked"
+      "status": "pending"
     },
     "T-web-033t": {
       "status": "pending"
     },
     "T-web-033": {
-      "status": "skipped",
-      "reason": "dependency T-api-014 is skipped"
+      "status": "pending"
     },
     "T-web-034t": {
       "status": "pending"
     },
     "T-web-034": {
-      "status": "skipped",
-      "reason": "dependency T-api-014 is skipped"
+      "status": "pending"
     },
     "T-web-035t": {
       "status": "pending"
     },
     "T-web-035": {
-      "status": "skipped",
-      "reason": "dependency T-api-014 is skipped"
+      "status": "pending"
     },
     "T-web-036t": {
       "status": "pending"
@@ -639,43 +628,37 @@
       "status": "pending"
     },
     "T-web-038": {
-      "status": "skipped",
-      "reason": "dependency T-api-026 is blocked"
+      "status": "pending"
     },
     "T-web-039t": {
       "status": "pending"
     },
     "T-web-039": {
-      "status": "skipped",
-      "reason": "dependency T-web-006 is skipped"
+      "status": "pending"
     },
     "T-web-040t": {
       "status": "pending"
     },
     "T-web-040": {
-      "status": "skipped",
-      "reason": "dependency T-api-007 is blocked"
+      "status": "pending"
     },
     "T-web-041t": {
       "status": "pending"
     },
     "T-web-041": {
-      "status": "skipped",
-      "reason": "dependency T-api-026 is blocked"
+      "status": "pending"
     },
     "T-web-042t": {
       "status": "pending"
     },
     "T-web-042": {
-      "status": "skipped",
-      "reason": "dependency T-api-026 is blocked"
+      "status": "pending"
     },
     "T-web-043t": {
       "status": "pending"
     },
     "T-web-043": {
-      "status": "skipped",
-      "reason": "dependency T-web-006 is skipped"
+      "status": "pending"
     }
   }
 }

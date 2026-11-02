@@ -27,6 +27,7 @@ depends_on:
 - T-api-018
 - T-api-019
 - T-api-026
+- T-api-027
 - T-worker-005
 - T-worker-006
 - T-worker-007

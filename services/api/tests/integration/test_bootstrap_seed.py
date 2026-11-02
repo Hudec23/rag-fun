@@ -140,5 +140,5 @@ async def test_run_migrations_creates_all_tables_and_second_run_is_no_op() -> No
         assert await _public_table_names(eng) == tables
         assert await _alembic_versions(eng) == ["0001"]
     finally:
+        await eng.dispose()  # close pooled sessions first, or Postgres refuses the DROP
         await _autocommit(admin_url, f"DROP DATABASE IF EXISTS {dbname}")
-        await eng.dispose()

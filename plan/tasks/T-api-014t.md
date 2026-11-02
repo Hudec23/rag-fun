@@ -2,7 +2,7 @@
 id: T-api-014t
 kind: test
 feature: F-stage-flow
-title: 'Write tests: build_payload for all 8 stages'
+title: 'Write tests: build_payload for the ingest stages'
 service: api
 depends_on: []
 edit:
@@ -17,10 +17,10 @@ max_attempts: 3
 ---
 
 ## Goal
-Write unit tests for: build_payload for all 8 stages. Do not implement anything — the code under test is a stub that raises/throws 'not implemented'; task T-api-014 implements it.
+Write unit tests for: build_payload for the ingest stages. Do not implement anything — the code under test is a stub that raises/throws 'not implemented'; task T-api-014 implements it.
 
 ## Context
-Integration test: uses the `session`/`client` fixtures (postgres-test). Insert stage rows with status done and artifact_key set to simulate active upstream stages; use add_settings + add_collection.
+Integration test: uses the `session`/`client` fixtures (postgres-test). Insert stage rows with status done and artifact_key set to simulate active upstream stages; use add_settings + add_collection. Stage params for those rows: copy `params` from the contract fixtures, e.g. `json.loads((FIXTURES / 'jobs__chunk.json').read_text())['params']` (`from tests.conftest import FIXTURES`; one file per stage: jobs__parse.json, jobs__chunk.json, jobs__embed.json, jobs__store.json, jobs__transform.json, jobs__retrieve.json, jobs__rerank.json, jobs__generate.json). Check payloads only with `errors(payload, 'jobs/<stage>.schema.json') == []`. Do not open anything under contracts/: the fixtures and this task contain everything you need.
 
 Stub in `services/api/src/rag_api/services/job_payloads.py` (signatures are final; replace only the bodies that raise NotImplementedError):
 ```python
@@ -66,8 +66,6 @@ One test per case, named after the case. Follow the style of the example test fi
 3. parse payload validates against contracts jobs/parse.schema.json (errors(payload, 'jobs/parse.schema.json') == [])
 4. chunk payload: parse_artifact_key = active parse row's artifact_key; dense == {'model': 'bge-m3', 'dims': 1024, 'ollama_url': settings ollama url}; validates
 5. embed + store payloads validate; store parse_strategy/chunk_strategy come from the active parse/chunk params
-6. transform/generate payload 'chat' == app_settings.resolve_chat; generate context_source 'rerank' when rerank active else 'retrieve' with the matching artifact key
-7. retrieve payload transform_artifact_key None when transform never ran; rerank payload model == settings reranker_model
 
 ## Do not
 - Do not write implementation code (not even to make a test compile).

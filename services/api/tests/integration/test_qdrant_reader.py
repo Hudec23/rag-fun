@@ -116,7 +116,8 @@ async def test_scroll_pages_with_filter(reader: QdrantReader, seeded: Seed) -> N
     assert second.points[0].vectors is None
     assert second.next_offset is None
     assert {first.points[0].id, second.points[0].id} == set(point_ids[:2])
-    assert {first.points[0].payload, second.points[0].payload} == {payloads[0]}
+    # points 0 and 1 carry identical payloads (same template, tags ['hr']); dicts are unhashable
+    assert [first.points[0].payload, second.points[0].payload] == [payloads[0], payloads[1]]
 
 
 async def test_scroll_with_vectors(reader: QdrantReader, seeded: Seed) -> None:

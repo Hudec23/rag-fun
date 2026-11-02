@@ -29,7 +29,13 @@ Stub in `services/api/src/rag_api/qdrant_read.py` (signatures are final; replace
 ```python
 """Read-only Qdrant access for the browser (R-011). Never upserts or deletes."""
 from typing import Any
-from rag_api.contracts_gen.shared.common_schema import PayloadFilter
+from qdrant_client import models
+from rag_api.contracts_gen.shared.common_schema import (
+    FilterCondition,
+    MatchAnyCondition,
+    PayloadFilter,
+    RangeCondition,
+)
 from rag_api.schemas.qdrant import FacetResponse, QdrantInfo, QdrantPoint, ScrollResponse
 
 

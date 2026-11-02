@@ -2,7 +2,7 @@
 id: T-api-014
 kind: impl
 feature: F-stage-flow
-title: build_payload for all 8 stages
+title: build_payload for the ingest stages
 service: api
 depends_on:
 - T-api-014t
@@ -21,10 +21,10 @@ max_attempts: 3
 ---
 
 ## Goal
-Implement: build_payload for all 8 stages. The tests written by T-api-014t define done.
+Implement: build_payload for the ingest stages. The tests written by T-api-014t define done.
 
 ## Context
-Integration test: uses the `session`/`client` fixtures (postgres-test). Insert stage rows with status done and artifact_key set to simulate active upstream stages; use add_settings + add_collection.
+Integration test: uses the `session`/`client` fixtures (postgres-test). Insert stage rows with status done and artifact_key set to simulate active upstream stages; use add_settings + add_collection. Stage params for those rows: copy `params` from the contract fixtures, e.g. `json.loads((FIXTURES / 'jobs__chunk.json').read_text())['params']` (`from tests.conftest import FIXTURES`; one file per stage: jobs__parse.json, jobs__chunk.json, jobs__embed.json, jobs__store.json, jobs__transform.json, jobs__retrieve.json, jobs__rerank.json, jobs__generate.json). Check payloads only with `errors(payload, 'jobs/<stage>.schema.json') == []`. Do not open anything under contracts/: the fixtures and this task contain everything you need.
 
 Stub in `services/api/src/rag_api/services/job_payloads.py` (signatures are final; replace only the bodies that raise NotImplementedError):
 ```python

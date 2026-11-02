@@ -26,7 +26,7 @@ feature("F-settings", "Model provider settings", ["R-020"], ["contracts/openapi/
 
 a = lambda *n: [f"T-api-{x:03d}" for x in n]
 w = lambda *n: [f"T-worker-{x:03d}" for x in n]
-CORE = a(1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 19, 26) + w(5, 6, 7, 8, 9, 12)
+CORE = a(1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 19, 26, 27) + w(5, 6, 7, 8, 9, 12)
 INGEST = w(17, 22, 25, 27)
 BROWSER = a(6, 7, 21)
 E2E_DEPS = {
