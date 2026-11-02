@@ -89,7 +89,8 @@
       "reason": "agent blocked: T-api-027t (attempt 2): task premise is no longer true \u2014 cannot make expect_fail red.\n\n- Task says the query stages in services/api/src/rag_api/services/job_payloads.py are stubs that\n  raise NotImplementedError, and the runner requires the expect_fail check (pytest on the new test\n  file) to FAIL with every test red due to 'not implemented'.\n- In the current repo state build_payload is FULLY implemented, query stages included\n  (transform/retrieve/rerank/generate at lines 122-140). T-api-014 was scoped to 'the ingest\n  stages' but its build_payload stub/docstring covered all stages, and T-api-014's executor\n  implemented the entire function, so T-api-027's work is already done.\n- The correct tests for the 5 named cases (services/api/tests/integration/test_job_payloads_query.py,\n  already in place from attempt 1) pass green: '5 passed'. Any test that asserts the specified\n  behaviour passes against the current implementation.\n- I cannot fix this within my edit: list (only the test file). Reverting job_payloads.py to the\n  stub is outside edit: and would fail the task / be reverted by the runner.\n- I will not write tests that intentionally fail against the correct implementation: that means\n  asserting values that contradict the spec, which the task forbids ('assert exact values'), and\n  would permanently break T-api-027, whose locked tests include my test file and which can then\n  never pass.\n\nSuggested planner fixes (any one):\n  1. Mark T-api-027t done (tests written, lint/collection clean) and mark T-api-027 done\n     (implementation already present and satisfies the spec; both locked test files pass), or\n  2. Restore job_payloads.py to the query-stage stub state (planner edit, not executor edit) and\n     re-run T-api-027t, or\n  3. Treat a test task as passing when the code under test is already implemented and the tests\n     pass green instead of requiring them to be red."
     },
     "T-api-027": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-027t is blocked"
     },
     "T-api-015t": {
       "status": "done"
@@ -131,7 +132,7 @@
       "status": "done"
     },
     "T-api-021": {
-      "status": "pending"
+      "status": "done"
     },
     "T-api-022t": {
       "status": "done"
@@ -437,7 +438,8 @@
       "status": "pending"
     },
     "T-web-006": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-027 is skipped"
     },
     "T-web-007t": {
       "status": "pending"
@@ -575,43 +577,50 @@
       "status": "pending"
     },
     "T-web-029": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-027 is skipped"
     },
     "T-web-030t": {
       "status": "pending"
     },
     "T-web-030": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-027 is skipped"
     },
     "T-web-031t": {
       "status": "pending"
     },
     "T-web-031": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-027 is skipped"
     },
     "T-web-032t": {
       "status": "pending"
     },
     "T-web-032": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-027 is skipped"
     },
     "T-web-033t": {
       "status": "pending"
     },
     "T-web-033": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-027 is skipped"
     },
     "T-web-034t": {
       "status": "pending"
     },
     "T-web-034": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-027 is skipped"
     },
     "T-web-035t": {
       "status": "pending"
     },
     "T-web-035": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-027 is skipped"
     },
     "T-web-036t": {
       "status": "pending"
@@ -635,13 +644,15 @@
       "status": "pending"
     },
     "T-web-039": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-web-006 is skipped"
     },
     "T-web-040t": {
       "status": "pending"
     },
     "T-web-040": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-027 is skipped"
     },
     "T-web-041t": {
       "status": "pending"
@@ -659,7 +670,8 @@
       "status": "pending"
     },
     "T-web-043": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-web-006 is skipped"
     }
   }
 }
