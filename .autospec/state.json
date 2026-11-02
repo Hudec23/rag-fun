@@ -303,7 +303,7 @@
       "reason": "dependency T-worker-009 is skipped"
     },
     "T-worker-023t": {
-      "status": "pending"
+      "status": "done"
     },
     "T-worker-023": {
       "status": "pending"
