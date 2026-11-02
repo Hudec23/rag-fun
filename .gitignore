@@ -17,3 +17,4 @@ coverage/
 # autospec runner
 .autospec/runs/
 .autospec/BLOCKED_REASON
+.autospec/STOP

@@ -11,6 +11,10 @@ For each pending task in .autospec/state.json whose depends_on are all done:
 
 Logs: .autospec/runs/<task id>/ (gitignored).
 
+Stopping: Ctrl-C reaches the agent (run.sh uses `docker run -it`); the agent exits 130 and the
+loop stops too, leaving that task pending with its changes reverted. To stop after the current
+task instead: `touch .autospec/STOP` (removed on the next start).
+
 Usage:
   python3 scripts/autospec-run.py                     # loop until nothing is runnable
   python3 scripts/autospec-run.py --only T-api-003t   # one task
@@ -39,6 +43,12 @@ RUNS = ROOT / ".autospec/runs"
 BLOCKED = ROOT / ".autospec/BLOCKED_REASON"
 STATE_REL = ".autospec/state.json"
 BLOCKED_REL = ".autospec/BLOCKED_REASON"
+STOP = ROOT / ".autospec/STOP"
+INTERRUPTED = (130, 143)  # agent killed by SIGINT / SIGTERM: the user wants to stop
+
+
+class Interrupted(Exception):
+    pass
 
 CHECK_TIMEOUT = 3600  # e2e verify builds the whole stack
 FEEDBACK_LINES = 150
@@ -251,6 +261,9 @@ def do_task(tid: str, runner: str, session_timeout: int) -> tuple[str, str]:
         print(f"\n=== {tid} — attempt {attempt}/{task['max_attempts']}: {task['title']}")
         agent = [runner, "--project", str(ROOT), "--keep", "--", "run", prompt_for(tid, attempt, feedback)]
         code = run_logged(agent, log, session_timeout)
+        if code in INTERRUPTED:
+            revert(changed_since(snap) - {STATE_REL}, snap)
+            raise Interrupted(f"{tid}: agent interrupted (exit {code}); task left pending, changes reverted")
 
         changed = changed_since(snap)
         if STATE_REL in changed:  # the runner owns state.json
@@ -300,13 +313,23 @@ def main() -> int:
     if not Path(runner).is_file():
         sys.exit(f"runner not found: {runner} (use --runner or $AUTOSPEC_RUNNER)")
 
-    done_count = 0
+    STOP.unlink(missing_ok=True)
+    done_count, stopped = 0, False
     while True:
+        if STOP.exists():
+            STOP.unlink()
+            print("[autospec-run] .autospec/STOP found, stopping")
+            stopped = True
+            break
         state = load_state()
         tid = next_task(state, args.only)
         if not tid:
             break
-        status, reason = do_task(tid, runner, args.session_timeout)
+        try:
+            status, reason = do_task(tid, runner, args.session_timeout)
+        except (Interrupted, KeyboardInterrupt) as e:
+            print(f"\n[autospec-run] stopped: {e or 'interrupted'}")
+            return 130
         state = load_state()
         state["tasks"][tid] = {"status": status, **({"reason": reason} if reason else {})}
         save_state(state)
@@ -323,7 +346,7 @@ def main() -> int:
         counts[e["status"]] = counts.get(e["status"], 0) + 1
     print(f"[autospec-run] finished: {counts}")
     pending = counts.get("pending", 0)
-    if pending and not args.only and not args.max_tasks:
+    if pending and not (stopped or args.only or args.max_tasks):
         print(f"[autospec-run] {pending} pending but none runnable (dependency cycle or missing ids)")
     return 1 if counts.get("blocked") else 0
 

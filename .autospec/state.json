@@ -174,16 +174,13 @@
       "status": "done"
     },
     "T-worker-003t": {
-      "status": "blocked",
-      "reason": "failed 3 attempts; last: agent exited (130) without changing any file"
+      "status": "pending"
     },
     "T-worker-003": {
-      "status": "skipped",
-      "reason": "dependency T-worker-003t is blocked"
+      "status": "pending"
     },
     "T-worker-004t": {
-      "status": "blocked",
-      "reason": "failed 3 attempts; last: agent exited (130) without changing any file"
+      "status": "pending"
     },
     "T-worker-004": {
       "status": "pending"
@@ -306,8 +303,7 @@
       "status": "pending"
     },
     "T-worker-024": {
-      "status": "skipped",
-      "reason": "dependency T-worker-003 is skipped"
+      "status": "pending"
     },
     "T-worker-025t": {
       "status": "pending"
