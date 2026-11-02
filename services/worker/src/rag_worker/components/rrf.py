@@ -10,7 +10,27 @@ def rrf_fuse(
     every list containing d (rank 1-based; identity = doc.id). Sort score desc, then doc.id asc;
     keep top_k. Returns [{'doc': Document, 'score': float(round 6), 'source_ranks':
     [{'query_index', 'list', 'rank'}]}] with source_ranks in input-list order."""
-    raise NotImplementedError("not implemented")
+    docs: dict[str, Document] = {}
+    scores: dict[str, float] = {}
+    source_ranks: dict[str, list[dict[str, Any]]] = {}
+    for query_index, list_name, docs_in_list in lists:
+        for rank, doc in enumerate(docs_in_list, start=1):
+            key = doc.id
+            if key not in docs:
+                docs[key] = doc
+                scores[key] = 0.0
+                source_ranks[key] = []
+            scores[key] += 1.0 / (rrf_k + rank)
+            source_ranks[key].append({"query_index": query_index, "list": list_name, "rank": rank})
+    ranked = sorted(docs, key=lambda key: (-round(scores[key], 6), key))
+    return [
+        {
+            "doc": docs[key],
+            "score": round(scores[key], 6),
+            "source_ranks": source_ranks[key],
+        }
+        for key in ranked[:top_k]
+    ]
 
 
 @component
