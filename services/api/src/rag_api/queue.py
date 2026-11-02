@@ -17,4 +17,6 @@ class ArqJobQueue:
         self.redis = redis
 
     async def enqueue(self, function: str, payload: dict[str, Any], queue: str) -> None:
-        raise NotImplementedError("not implemented")
+        await self.redis.enqueue_job(
+            function, payload, _job_id=payload.get("stage_run_id"), _queue_name=queue
+        )
