@@ -2,7 +2,7 @@
 """autospec task loop (phase 2). Runs on the host; needs python3 (stdlib only), git and Docker.
 
 For each pending task in .autospec/state.json whose depends_on are all done:
-  1. start a fresh opencode session for that one task (via the opencodocker run.sh),
+  1. start a fresh opencode session for that one task (via the opencode-docker run.sh),
   2. check that only files under the task's `edit:` changed (other changes are reverted),
   3. run the task's `verify:` (must pass) and `expect_fail:` (must fail) commands itself,
   4. pass -> commit the task's files + state.json, status done;
