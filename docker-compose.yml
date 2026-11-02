@@ -67,7 +67,8 @@ services:
       api: { condition: service_healthy }
 
   web:
-    build: { context: services/web }
+    # tests/setup/fixtures.ts imports ../../../../tests/contract_fixtures (repo root), outside this context
+    build: { context: services/web, additional_contexts: { contract_fixtures: tests/contract_fixtures } }
     ports: ["127.0.0.1:8080:80"]
     depends_on:
       api: { condition: service_healthy }

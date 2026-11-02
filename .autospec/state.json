@@ -85,12 +85,10 @@
       "status": "done"
     },
     "T-api-027t": {
-      "status": "blocked",
-      "reason": "agent blocked: T-api-027t (attempt 2): task premise is no longer true \u2014 cannot make expect_fail red.\n\n- Task says the query stages in services/api/src/rag_api/services/job_payloads.py are stubs that\n  raise NotImplementedError, and the runner requires the expect_fail check (pytest on the new test\n  file) to FAIL with every test red due to 'not implemented'.\n- In the current repo state build_payload is FULLY implemented, query stages included\n  (transform/retrieve/rerank/generate at lines 122-140). T-api-014 was scoped to 'the ingest\n  stages' but its build_payload stub/docstring covered all stages, and T-api-014's executor\n  implemented the entire function, so T-api-027's work is already done.\n- The correct tests for the 5 named cases (services/api/tests/integration/test_job_payloads_query.py,\n  already in place from attempt 1) pass green: '5 passed'. Any test that asserts the specified\n  behaviour passes against the current implementation.\n- I cannot fix this within my edit: list (only the test file). Reverting job_payloads.py to the\n  stub is outside edit: and would fail the task / be reverted by the runner.\n- I will not write tests that intentionally fail against the correct implementation: that means\n  asserting values that contradict the spec, which the task forbids ('assert exact values'), and\n  would permanently break T-api-027, whose locked tests include my test file and which can then\n  never pass.\n\nSuggested planner fixes (any one):\n  1. Mark T-api-027t done (tests written, lint/collection clean) and mark T-api-027 done\n     (implementation already present and satisfies the spec; both locked test files pass), or\n  2. Restore job_payloads.py to the query-stage stub state (planner edit, not executor edit) and\n     re-run T-api-027t, or\n  3. Treat a test task as passing when the code under test is already implemented and the tests\n     pass green instead of requiring them to be red."
+      "status": "done"
     },
     "T-api-027": {
-      "status": "skipped",
-      "reason": "dependency T-api-027t is blocked"
+      "status": "done"
     },
     "T-api-015t": {
       "status": "done"
@@ -162,8 +160,7 @@
       "status": "done"
     },
     "T-api-026": {
-      "status": "blocked",
-      "reason": "agent blocked: T-api-026 (attempt 2): task's own implementation is complete and its in-scope verifies pass, but the\ne2e verify command cannot pass without editing files outside the task's edit: list.\n\nState of my part (all verified this attempt):\n- services/api/src/rag_api/services/bootstrap.py implements run_migrations + seed per the docstrings.\n- verify 1 (ruff format/check + mypy on bootstrap.py) passes.\n- verify 2 (pytest tests/integration/test_bootstrap_seed.py) passes: 4 passed.\n- api and worker images build successfully in the e2e stack.\n\nThe failing check is verify 3:\n  docker compose -p ragfun-e2e -f docker-compose.yml -f docker-compose.e2e.yml up -d --build --wait && ...\nThe `up -d --build` step fails building target `web`:\n  > [web build 6/6] RUN npm run build   (tsc -b && vite build)\n  tests/setup/fixtures.ts(14..22): error TS2307: Cannot find module\n  '../../../../tests/contract_fixtures/artifact_chunk.json' (and embed/generate/parse/rerank/retrieve/\n  store/transform/shared__pipeline-graph.json)\nReproduced again this attempt with the same 9 errors (see .autospec/runs/T-api-026/feedback.txt and this\nattempt's rerun).\n\nRoot cause (pre-existing repo inconsistency, unrelated to bootstrap.py):\n- services/web/tests/setup/fixtures.ts imports the shared contract fixtures via the relative path\n  '../../../../tests/contract_fixtures/*.json'.\n- On the host this resolves to /workspace/tests/contract_fixtures/ (files exist), so vitest and host\n  tsc work.\n- In the web Docker image the build context is only services/web (docker-compose.yml: web build\n  context: services/web; Dockerfile WORKDIR /app, COPY . .). The same relative path from\n  /app/tests/setup/ resolves to /tests/contract_fixtures/ \u2014 the files are at the repo root, outside\n  the context, so tsc inside the image cannot find them.\n- Consequence: the web image can never build as-is. This is the first task whose verify includes the\n  full e2e stack build (all T-web-* e2e tasks are pending), so the scaffold defect is hit for the first\n  time here.\n\nWhy I cannot fix it:\n- The task's edit: list contains only services/api/src/rag_api/services/bootstrap.py.\n- Any fix requires touching services/web files (e.g. change the imports in tests/setup/fixtures.ts and\n  vendor the fixtures into the web context, add a COPY step in services/web/Dockerfile, or adjust\n  services/web/tsconfig.json to not type-check tests in the build). All are outside edit:, and the\n  runner reverts out-of-edit edits, so working around it would fail the task anyway.\n\nSuggested planner fixes (any one unblocks T-api-026 and the later T-web e2e tasks):\n1. Fix the scaffold in a planner/web task before T-api-026 reruns: make the web build self-contained,\n   e.g. copy tests/contract_fixtures into services/web (tests/contract_fixtures or src-level) and point\n   fixtures.ts at the in-context path, or add a Dockerfile step/paths so the image resolves them.\n2. Or change T-api-026's verify to build only the api stack it exercises (e.g. omit --build of web)\n   until the web build is fixed by the web task line."
+      "status": "pending"
     },
     "T-worker-001t": {
       "status": "done"
@@ -199,8 +196,7 @@
       "status": "done"
     },
     "T-worker-006": {
-      "status": "blocked",
-      "reason": "agent blocked: Task T-worker-006 (impl: ApiClient callbacks with retries) is blocked by a contradiction between the locked test and the pinned dependency version.\n\nState:\n- services/worker/src/rag_worker/callbacks.py is fully implemented per the stub docstring (retry on TransportError/5xx, RETRY_DELAYS [1,2,4,8,16], 4xx fail-fast, re-raise last error). Verify command 1 (ruff format/check + mypy) passes.\n- Verify command 2 (pytest -q tests/unit/test_callbacks.py) cannot pass with ANY implementation in this environment.\n\nRoot cause (empirically verified in the worker-dev container):\n- The locked test asserts on `mock.calls` AFTER the `async with respx.mock() as mock:` context exits (test lines 52, 67, 83, 100, 114, 128, 141).\n- The pinned respx==0.23.1 (services/worker/pyproject.toml, installed version confirmed) clears MockRouter.calls on context exit: MockRouter.__exit__ -> stop() -> rollback() + reset() -> self.calls.clear(). Minimal repro in the same container: len(mock.calls) == 1 inside the context, == 0 after exit.\n- Current failure is exactly that: all 7 tests fail at the post-context call assertions (call_count == 0 / \"not enough values to unpack\"); the requests themselves are served correctly by the mock (e.g. the 404 test's in-context HTTPStatusError assertion passes).\n\nProof the implementation is correct:\n- Re-ran all 7 test scenarios with the post-context assertions moved inside the respx context: all pass, including exact URLs, X-Internal-Token header, exact JSON bodies, sleeps == [1, 2] after two 503s then 204, 5 attempts with sleeps == [1, 2, 4, 8] then ConnectError re-raised, 404 -> HTTPStatusError after exactly 1 call with no sleep, and trailing-slash base_url building a single-slash URL.\n\nWhy this task cannot fix it:\n- The test file is locked (do not touch); pyproject.toml and uv.lock are off-limits; no dependencies may be added; the only editable file (callbacks.py) cannot influence respx's internal call-history clearing. Working around it from production code (e.g. hooking respx internals) is explicitly out of scope.\n\nSuggested planner fixes (either one unblocks):\n1. Edit the locked test so every `mock.calls` assertion is made INSIDE the `async with respx.mock() as mock:` block (the in-context run above shows all 7 then pass against the current callbacks.py).\n2. Or pin a respx version that preserves mock.calls after context exit and regenerate uv.lock (verify the new version's reset() behavior before re-running)."
+      "status": "pending"
     },
     "T-worker-007t": {
       "status": "done"
@@ -212,15 +208,13 @@
       "status": "done"
     },
     "T-worker-008": {
-      "status": "skipped",
-      "reason": "dependency T-worker-006 is blocked"
+      "status": "pending"
     },
     "T-worker-009t": {
       "status": "done"
     },
     "T-worker-009": {
-      "status": "skipped",
-      "reason": "dependency T-worker-008 is skipped"
+      "status": "pending"
     },
     "T-worker-010t": {
       "status": "done"
@@ -268,8 +262,7 @@
       "status": "done"
     },
     "T-worker-017": {
-      "status": "skipped",
-      "reason": "dependency T-worker-009 is skipped"
+      "status": "pending"
     },
     "T-worker-018t": {
       "status": "done"
@@ -299,8 +292,7 @@
       "status": "done"
     },
     "T-worker-022": {
-      "status": "skipped",
-      "reason": "dependency T-worker-009 is skipped"
+      "status": "pending"
     },
     "T-worker-023t": {
       "status": "done"
@@ -318,8 +310,7 @@
       "status": "pending"
     },
     "T-worker-025": {
-      "status": "skipped",
-      "reason": "dependency T-worker-009 is skipped"
+      "status": "pending"
     },
     "T-worker-026t": {
       "status": "pending"
@@ -331,8 +322,7 @@
       "status": "pending"
     },
     "T-worker-027": {
-      "status": "skipped",
-      "reason": "dependency T-worker-009 is skipped"
+      "status": "pending"
     },
     "T-worker-028t": {
       "status": "pending"
@@ -344,8 +334,7 @@
       "status": "pending"
     },
     "T-worker-029": {
-      "status": "skipped",
-      "reason": "dependency T-worker-009 is skipped"
+      "status": "pending"
     },
     "T-worker-030t": {
       "status": "pending"
@@ -369,8 +358,7 @@
       "status": "pending"
     },
     "T-worker-033": {
-      "status": "skipped",
-      "reason": "dependency T-worker-009 is skipped"
+      "status": "pending"
     },
     "T-worker-034t": {
       "status": "pending"
@@ -382,8 +370,7 @@
       "status": "pending"
     },
     "T-worker-035": {
-      "status": "skipped",
-      "reason": "dependency T-worker-009 is skipped"
+      "status": "pending"
     },
     "T-worker-036t": {
       "status": "pending"
@@ -401,8 +388,7 @@
       "status": "pending"
     },
     "T-worker-038": {
-      "status": "skipped",
-      "reason": "dependency T-worker-009 is skipped"
+      "status": "pending"
     },
     "T-worker-039t": {
       "status": "pending"
@@ -450,8 +436,7 @@
       "status": "pending"
     },
     "T-web-006": {
-      "status": "skipped",
-      "reason": "dependency T-api-027 is skipped"
+      "status": "pending"
     },
     "T-web-007t": {
       "status": "pending"
@@ -499,15 +484,13 @@
       "status": "pending"
     },
     "T-web-014": {
-      "status": "skipped",
-      "reason": "dependency T-api-026 is blocked"
+      "status": "pending"
     },
     "T-web-015t": {
       "status": "pending"
     },
     "T-web-015": {
-      "status": "skipped",
-      "reason": "dependency T-api-026 is blocked"
+      "status": "pending"
     },
     "T-web-016t": {
       "status": "pending"
@@ -591,50 +574,43 @@
       "status": "pending"
     },
     "T-web-029": {
-      "status": "skipped",
-      "reason": "dependency T-api-027 is skipped"
+      "status": "pending"
     },
     "T-web-030t": {
       "status": "pending"
     },
     "T-web-030": {
-      "status": "skipped",
-      "reason": "dependency T-api-027 is skipped"
+      "status": "pending"
     },
     "T-web-031t": {
       "status": "pending"
     },
     "T-web-031": {
-      "status": "skipped",
-      "reason": "dependency T-api-027 is skipped"
+      "status": "pending"
     },
     "T-web-032t": {
       "status": "pending"
     },
     "T-web-032": {
-      "status": "skipped",
-      "reason": "dependency T-api-027 is skipped"
+      "status": "pending"
     },
     "T-web-033t": {
       "status": "pending"
     },
     "T-web-033": {
-      "status": "skipped",
-      "reason": "dependency T-api-027 is skipped"
+      "status": "pending"
     },
     "T-web-034t": {
       "status": "pending"
     },
     "T-web-034": {
-      "status": "skipped",
-      "reason": "dependency T-api-027 is skipped"
+      "status": "pending"
     },
     "T-web-035t": {
       "status": "pending"
     },
     "T-web-035": {
-      "status": "skipped",
-      "reason": "dependency T-api-027 is skipped"
+      "status": "pending"
     },
     "T-web-036t": {
       "status": "pending"
@@ -652,43 +628,37 @@
       "status": "pending"
     },
     "T-web-038": {
-      "status": "skipped",
-      "reason": "dependency T-api-026 is blocked"
+      "status": "pending"
     },
     "T-web-039t": {
       "status": "pending"
     },
     "T-web-039": {
-      "status": "skipped",
-      "reason": "dependency T-web-006 is skipped"
+      "status": "pending"
     },
     "T-web-040t": {
       "status": "pending"
     },
     "T-web-040": {
-      "status": "skipped",
-      "reason": "dependency T-api-027 is skipped"
+      "status": "pending"
     },
     "T-web-041t": {
       "status": "pending"
     },
     "T-web-041": {
-      "status": "skipped",
-      "reason": "dependency T-api-026 is blocked"
+      "status": "pending"
     },
     "T-web-042t": {
       "status": "pending"
     },
     "T-web-042": {
-      "status": "skipped",
-      "reason": "dependency T-api-026 is blocked"
+      "status": "pending"
     },
     "T-web-043t": {
       "status": "pending"
     },
     "T-web-043": {
-      "status": "skipped",
-      "reason": "dependency T-web-006 is skipped"
+      "status": "pending"
     }
   }
 }

@@ -9,18 +9,18 @@ and .autospec/state.json. Do not edit by hand; re-run the script.
 |---|---|---|---|
 | R-001 | User can upload multiple files in one batch (drag & drop); each file is stored in local S3 and listed with name, type, size, batch | F-upload | 10/18 |
 | R-002 | Supported types: PDF (text and scanned), DOCX, PPTX, XLSX, MD, TXT, HTML, CSV, PNG, JPG, TIFF; others rejected with `UNSUPPORTED_FILE_TYPE` | F-upload | 10/18 |
-| R-003 | User can attach free-form tags to a file and to a whole batch; tags become Qdrant payload | F-upload, F-store | 10/26 |
-| R-004 | Parse stage with 3 strategies: `docling_layout`, `docling_ocr` (forced full-page OCR), `plain_text` | F-parse | 0/14 |
-| R-005 | Parse visualization: page images with colored bounding boxes per element type (text, heading, table, picture, list), element list, tables rendered as tables, OCR text shown next to image | F-parse | 0/14 |
-| R-006 | Chunk stage with 6 strategies: `fixed`, `sentence`, `recursive`, `semantic`, `structure`, `table` — each with its own parameters | F-chunk | 2/18 |
-| R-007 | Chunk visualization: source text with chunk boundaries color-highlighted (overlaps visible), chunk cards with metadata, chunk length histogram, chunk count | F-chunk | 2/18 |
-| R-008 | Embed stage computes dense (Ollama) and sparse (BM25 or SPLADE) vectors but does NOT store them | F-embed | 2/24 |
-| R-009 | Embed visualization: per-chunk token view with token count vs model limit, vector heatmap, 2D and 3D scatter (PCA and UMAP), cosine similarity matrix | F-embed | 2/24 |
-| R-010 | Store stage upserts embedded chunks into a Qdrant collection with named dense + sparse vectors and the payload in contracts/qdrant/payload.schema.json; re-storing a file replaces its points | F-store | 0/8 |
-| R-011 | Qdrant browser: collection info (vector config, point count, payload indexes), paginated point list with payload, filter builder over payload tags, raw JSON of a point | F-qdrant-browser | 4/12 |
+| R-003 | User can attach free-form tags to a file and to a whole batch; tags become Qdrant payload | F-upload, F-store | 12/26 |
+| R-004 | Parse stage with 3 strategies: `docling_layout`, `docling_ocr` (forced full-page OCR), `plain_text` | F-parse | 9/14 |
+| R-005 | Parse visualization: page images with colored bounding boxes per element type (text, heading, table, picture, list), element list, tables rendered as tables, OCR text shown next to image | F-parse | 9/14 |
+| R-006 | Chunk stage with 6 strategies: `fixed`, `sentence`, `recursive`, `semantic`, `structure`, `table` — each with its own parameters | F-chunk | 11/18 |
+| R-007 | Chunk visualization: source text with chunk boundaries color-highlighted (overlaps visible), chunk cards with metadata, chunk length histogram, chunk count | F-chunk | 11/18 |
+| R-008 | Embed stage computes dense (Ollama) and sparse (BM25 or SPLADE) vectors but does NOT store them | F-embed | 12/24 |
+| R-009 | Embed visualization: per-chunk token view with token count vs model limit, vector heatmap, 2D and 3D scatter (PCA and UMAP), cosine similarity matrix | F-embed | 12/24 |
+| R-010 | Store stage upserts embedded chunks into a Qdrant collection with named dense + sparse vectors and the payload in contracts/qdrant/payload.schema.json; re-storing a file replaces its points | F-store | 2/8 |
+| R-011 | Qdrant browser: collection info (vector config, point count, payload indexes), paginated point list with payload, filter builder over payload tags, raw JSON of a point | F-qdrant-browser | 6/12 |
 | R-012 | User manages Collections (name, dense model, sparse model) — embedding model fixed per collection | F-collections | 2/8 |
-| R-013 | Step-by-step flow: each stage runs on demand, can be re-run with new params (new version); re-running a stage marks downstream stages `stale`. "Run all" runs remaining stages with current params | F-stage-flow | 14/42 |
-| R-014 | Live progress of every running stage is pushed to the browser (SSE) | F-live-progress | 4/10 |
+| R-013 | Step-by-step flow: each stage runs on demand, can be re-run with new params (new version); re-running a stage marks downstream stages `stale`. "Run all" runs remaining stages with current params | F-stage-flow | 23/42 |
+| R-014 | Live progress of every running stage is pushed to the browser (SSE) | F-live-progress | 6/10 |
 | R-015 | Query transform stage: `none`, `rewrite`, `multi_query`, `hyde`; shows generated queries/text | F-transform | 2/8 |
 | R-016 | Retrieve stage: `dense`, `sparse`, `hybrid` (RRF); with metadata filters; hybrid view shows the dense list, sparse list and fused list side by side with scores and ranks | F-retrieve | 0/12 |
 | R-017 | Rerank stage: cross-encoder reorders top-K; shows before/after rank and score | F-rerank | 0/8 |
@@ -30,7 +30,7 @@ and .autospec/state.json. Do not edit by hand; re-run the script.
 | R-021 | Default install is fully local: no API key needed; works on macOS (Apple Silicon) and Windows (Docker Desktop) | walking skeleton (`baseline_tests`) | – |
 | R-022 | Every error response uses the shared error shape | walking skeleton (`baseline_tests`) | – |
 | R-023 | All services log JSON lines with the shared fields | walking skeleton (`baseline_tests`) | – |
-| R-024 | Every service exposes or reports health; web shows a status bar of api, worker, postgres, redis, qdrant, s3, ollama | F-status | 4/8 |
+| R-024 | Every service exposes or reports health; web shows a status bar of api, worker, postgres, redis, qdrant, s3, ollama | F-status | 6/8 |
 | R-025 | One command starts everything preconfigured and opens the UI: `./start.sh` (macOS/Linux) or `start.cmd` (Windows) checks Docker and Ollama, pulls missing default models, runs `docker compose up -d --build --wait`, waits for `/api/v1/health`, opens `http://localhost:8080`. `./stop.sh` / `stop.cmd` stops it. No manual config: defaults in `.env.defaults`, DB migrations, S3 buckets, the default collection and settings row are created automatically on api startup | F-one-command | 1/2 |
 
 ## Features
@@ -40,14 +40,14 @@ and .autospec/state.json. Do not edit by hand; re-run the script.
 | F-upload | Upload files in batches with tags | `tests/e2e/test_upload.py`<br>`services/web/tests/acceptance/Upload.test.tsx` | T-web-038 | T-api-001, T-api-001t, T-api-003, T-api-003t, T-api-008, T-api-008t, T-api-009, T-api-009t, T-api-010, T-api-010t, T-web-001, T-web-001t, T-web-008, T-web-008t, T-web-016, T-web-016t, T-web-038, T-web-038t | 10/18 |
 | F-collections | Manage collections | `tests/e2e/test_collections.py`<br>`services/web/tests/acceptance/Collections.test.tsx` | T-web-014 | T-api-011, T-api-011t, T-web-004, T-web-004t, T-web-014, T-web-014t, T-worker-040, T-worker-040t | 2/8 |
 | F-one-command | Preconfigured one-command start (bootstrap) | `tests/e2e/test_bootstrap.py` | T-api-026 | T-api-026, T-api-026t | 1/2 |
-| F-status | Service status bar | `tests/e2e/test_status.py`<br>`services/web/tests/acceptance/StatusBar.test.tsx` | T-web-015 | T-api-023, T-api-023t, T-api-024, T-api-024t, T-web-015, T-web-015t, T-worker-010, T-worker-010t | 4/8 |
-| F-stage-flow | Step-by-step stages, versions, stale, run-all | `tests/e2e/test_stage_flow.py`<br>`services/web/tests/acceptance/IngestRun.test.tsx` | T-web-039 | T-api-002, T-api-002t, T-api-004, T-api-004t, T-api-013, T-api-013t, T-api-014, T-api-014t, T-api-015, T-api-015t, T-api-016, T-api-016t, T-api-018, T-api-018t, T-api-019, T-api-019t, T-api-027, T-api-027t, T-web-002, T-web-002t, T-web-007, T-web-007t, T-web-009, T-web-009t, T-web-010, T-web-010t, T-web-011, T-web-011t, T-web-012, T-web-012t, T-web-037, T-web-037t, T-web-039, T-web-039t, T-worker-005, T-worker-005t, T-worker-006, T-worker-006t, T-worker-008, T-worker-008t, T-worker-009, T-worker-009t | 14/42 |
-| F-live-progress | Live progress over SSE | `tests/e2e/test_events.py` | T-web-006 | T-api-005, T-api-005t, T-api-020, T-api-020t, T-web-005, T-web-005t, T-web-006, T-web-006t, T-worker-007, T-worker-007t | 4/10 |
-| F-parse | Parse strategies + page/bbox view | `tests/e2e/test_parse.py`<br>`services/web/tests/acceptance/ParseView.test.tsx` | T-web-029 | T-web-017, T-web-017t, T-web-029, T-web-029t, T-worker-013, T-worker-013t, T-worker-014, T-worker-014t, T-worker-015, T-worker-015t, T-worker-016, T-worker-016t, T-worker-017, T-worker-017t | 0/14 |
-| F-chunk | Chunk strategies + chunk view | `tests/e2e/test_chunk.py`<br>`services/web/tests/acceptance/ChunkView.test.tsx` | T-web-030 | T-web-018, T-web-018t, T-web-019, T-web-019t, T-web-030, T-web-030t, T-worker-001, T-worker-001t, T-worker-018, T-worker-018t, T-worker-019, T-worker-019t, T-worker-020, T-worker-020t, T-worker-021, T-worker-021t, T-worker-022, T-worker-022t | 2/18 |
-| F-embed | Embeddings inspected before storing | `tests/e2e/test_embed.py`<br>`services/web/tests/acceptance/EmbedView.test.tsx` | T-web-031 | T-web-020, T-web-020t, T-web-021, T-web-021t, T-web-022, T-web-022t, T-web-023, T-web-023t, T-web-031, T-web-031t, T-worker-002, T-worker-002t, T-worker-003, T-worker-003t, T-worker-004, T-worker-004t, T-worker-012, T-worker-012t, T-worker-023, T-worker-023t, T-worker-024, T-worker-024t, T-worker-025, T-worker-025t | 2/24 |
-| F-store | Store in Qdrant with payload tags | `tests/e2e/test_store.py`<br>`tests/e2e/test_tags.py`<br>`services/web/tests/acceptance/StoreView.test.tsx` | T-web-032 | T-web-032, T-web-032t, T-worker-011, T-worker-011t, T-worker-026, T-worker-026t, T-worker-027, T-worker-027t | 0/8 |
-| F-qdrant-browser | Qdrant browser with filters | `tests/e2e/test_qdrant_browser.py`<br>`services/web/tests/acceptance/QdrantBrowser.test.tsx` | T-web-040 | T-api-006, T-api-006t, T-api-007, T-api-007t, T-api-021, T-api-021t, T-web-003, T-web-003t, T-web-013, T-web-013t, T-web-040, T-web-040t | 4/12 |
+| F-status | Service status bar | `tests/e2e/test_status.py`<br>`services/web/tests/acceptance/StatusBar.test.tsx` | T-web-015 | T-api-023, T-api-023t, T-api-024, T-api-024t, T-web-015, T-web-015t, T-worker-010, T-worker-010t | 6/8 |
+| F-stage-flow | Step-by-step stages, versions, stale, run-all | `tests/e2e/test_stage_flow.py`<br>`services/web/tests/acceptance/IngestRun.test.tsx` | T-web-039 | T-api-002, T-api-002t, T-api-004, T-api-004t, T-api-013, T-api-013t, T-api-014, T-api-014t, T-api-015, T-api-015t, T-api-016, T-api-016t, T-api-018, T-api-018t, T-api-019, T-api-019t, T-api-027, T-api-027t, T-web-002, T-web-002t, T-web-007, T-web-007t, T-web-009, T-web-009t, T-web-010, T-web-010t, T-web-011, T-web-011t, T-web-012, T-web-012t, T-web-037, T-web-037t, T-web-039, T-web-039t, T-worker-005, T-worker-005t, T-worker-006, T-worker-006t, T-worker-008, T-worker-008t, T-worker-009, T-worker-009t | 23/42 |
+| F-live-progress | Live progress over SSE | `tests/e2e/test_events.py` | T-web-006 | T-api-005, T-api-005t, T-api-020, T-api-020t, T-web-005, T-web-005t, T-web-006, T-web-006t, T-worker-007, T-worker-007t | 6/10 |
+| F-parse | Parse strategies + page/bbox view | `tests/e2e/test_parse.py`<br>`services/web/tests/acceptance/ParseView.test.tsx` | T-web-029 | T-web-017, T-web-017t, T-web-029, T-web-029t, T-worker-013, T-worker-013t, T-worker-014, T-worker-014t, T-worker-015, T-worker-015t, T-worker-016, T-worker-016t, T-worker-017, T-worker-017t | 9/14 |
+| F-chunk | Chunk strategies + chunk view | `tests/e2e/test_chunk.py`<br>`services/web/tests/acceptance/ChunkView.test.tsx` | T-web-030 | T-web-018, T-web-018t, T-web-019, T-web-019t, T-web-030, T-web-030t, T-worker-001, T-worker-001t, T-worker-018, T-worker-018t, T-worker-019, T-worker-019t, T-worker-020, T-worker-020t, T-worker-021, T-worker-021t, T-worker-022, T-worker-022t | 11/18 |
+| F-embed | Embeddings inspected before storing | `tests/e2e/test_embed.py`<br>`services/web/tests/acceptance/EmbedView.test.tsx` | T-web-031 | T-web-020, T-web-020t, T-web-021, T-web-021t, T-web-022, T-web-022t, T-web-023, T-web-023t, T-web-031, T-web-031t, T-worker-002, T-worker-002t, T-worker-003, T-worker-003t, T-worker-004, T-worker-004t, T-worker-012, T-worker-012t, T-worker-023, T-worker-023t, T-worker-024, T-worker-024t, T-worker-025, T-worker-025t | 12/24 |
+| F-store | Store in Qdrant with payload tags | `tests/e2e/test_store.py`<br>`tests/e2e/test_tags.py`<br>`services/web/tests/acceptance/StoreView.test.tsx` | T-web-032 | T-web-032, T-web-032t, T-worker-011, T-worker-011t, T-worker-026, T-worker-026t, T-worker-027, T-worker-027t | 2/8 |
+| F-qdrant-browser | Qdrant browser with filters | `tests/e2e/test_qdrant_browser.py`<br>`services/web/tests/acceptance/QdrantBrowser.test.tsx` | T-web-040 | T-api-006, T-api-006t, T-api-007, T-api-007t, T-api-021, T-api-021t, T-web-003, T-web-003t, T-web-013, T-web-013t, T-web-040, T-web-040t | 6/12 |
 | F-transform | Query transforms | `tests/e2e/test_transform.py`<br>`services/web/tests/acceptance/TransformView.test.tsx` | T-web-033 | T-api-017, T-api-017t, T-web-033, T-web-033t, T-worker-028, T-worker-028t, T-worker-029, T-worker-029t | 2/8 |
 | F-retrieve | Dense / sparse / hybrid retrieval with filters | `tests/e2e/test_retrieve.py`<br>`services/web/tests/acceptance/RetrieveView.test.tsx` | T-web-034 | T-web-024, T-web-024t, T-web-034, T-web-034t, T-worker-030, T-worker-030t, T-worker-031, T-worker-031t, T-worker-032, T-worker-032t, T-worker-033, T-worker-033t | 0/12 |
 | F-rerank | Reranking | `tests/e2e/test_rerank.py`<br>`services/web/tests/acceptance/RerankView.test.tsx` | T-web-035 | T-web-025, T-web-025t, T-web-035, T-web-035t, T-worker-034, T-worker-034t, T-worker-035, T-worker-035t | 0/8 |
@@ -71,7 +71,7 @@ and .autospec/state.json. Do not edit by hand; re-run the script.
 | T-api-005t | test | api | F-live-progress | – | done |
 | T-api-006 | impl | api | F-qdrant-browser | T-api-006t | done |
 | T-api-006t | test | api | F-qdrant-browser | – | done |
-| T-api-007 | impl | api | F-qdrant-browser | T-api-007t, T-api-006 | blocked |
+| T-api-007 | impl | api | F-qdrant-browser | T-api-007t, T-api-006 | done |
 | T-api-007t | test | api | F-qdrant-browser | T-api-006 | done |
 | T-api-008 | impl | api | F-upload | T-api-008t, T-api-001, T-api-003 | done |
 | T-api-008t | test | api | F-upload | – | done |
@@ -85,8 +85,8 @@ and .autospec/state.json. Do not edit by hand; re-run the script.
 | T-api-012t | test | api | F-settings | – | done |
 | T-api-013 | impl | api | F-stage-flow | T-api-013t, T-api-004, T-api-005 | done |
 | T-api-013t | test | api | F-stage-flow | – | done |
-| T-api-014 | impl | api | F-stage-flow | T-api-014t, T-api-012, T-api-013 | skipped |
-| T-api-014t | test | api | F-stage-flow | – | blocked |
+| T-api-014 | impl | api | F-stage-flow | T-api-014t, T-api-012, T-api-013 | done |
+| T-api-014t | test | api | F-stage-flow | – | done |
 | T-api-015 | impl | api | F-stage-flow | T-api-015t, T-api-013 | done |
 | T-api-015t | test | api | F-stage-flow | – | done |
 | T-api-016 | impl | api | F-stage-flow | T-api-016t, T-api-010, T-api-015 | done |
@@ -99,7 +99,7 @@ and .autospec/state.json. Do not edit by hand; re-run the script.
 | T-api-019t | test | api | F-stage-flow | – | done |
 | T-api-020 | impl | api | F-live-progress | T-api-020t, T-api-005 | done |
 | T-api-020t | test | api | F-live-progress | – | done |
-| T-api-021 | impl | api | F-qdrant-browser | T-api-021t, T-api-007 | skipped |
+| T-api-021 | impl | api | F-qdrant-browser | T-api-021t, T-api-007 | done |
 | T-api-021t | test | api | F-qdrant-browser | – | done |
 | T-api-022 | impl | api | F-settings | T-api-022t, T-api-012 | done |
 | T-api-022t | test | api | F-settings | – | done |
@@ -109,10 +109,10 @@ and .autospec/state.json. Do not edit by hand; re-run the script.
 | T-api-024t | test | api | F-status | – | done |
 | T-api-025 | impl | api | F-pipeline-graph | T-api-025t | done |
 | T-api-025t | test | api | F-pipeline-graph | – | done |
-| T-api-026 | impl | api | F-one-command | T-api-026t, T-api-003, T-api-011, T-api-023 | blocked |
+| T-api-026 | impl | api | F-one-command | T-api-026t, T-api-003, T-api-011, T-api-023 | pending |
 | T-api-026t | test | api | F-one-command | – | done |
-| T-api-027 | impl | api | F-stage-flow | T-api-027t, T-api-014 | pending |
-| T-api-027t | test | api | F-stage-flow | – | pending |
+| T-api-027 | impl | api | F-stage-flow | T-api-027t, T-api-014 | done |
+| T-api-027t | test | api | F-stage-flow | – | done |
 | T-web-001 | impl | web | F-upload | T-web-001t | pending |
 | T-web-001t | test | web | F-upload | – | pending |
 | T-web-002 | impl | web | F-stage-flow | T-web-002t | pending |
@@ -123,7 +123,7 @@ and .autospec/state.json. Do not edit by hand; re-run the script.
 | T-web-004t | test | web | F-collections | – | pending |
 | T-web-005 | impl | web | F-live-progress | T-web-005t | pending |
 | T-web-005t | test | web | F-live-progress | – | pending |
-| T-web-006 | impl | web | F-live-progress | T-web-006t, T-web-002, T-web-005, T-api-001, T-api-002, T-api-003, T-api-004, T-api-005, T-api-008, T-api-009, T-api-010, T-api-011, T-api-012, T-api-013, T-api-014, T-api-015, T-api-016, T-api-018, T-api-019, T-api-026, T-api-027, T-worker-005, T-worker-006, T-worker-007, T-worker-008, T-worker-009, T-worker-012, T-api-020, T-worker-017 | skipped |
+| T-web-006 | impl | web | F-live-progress | T-web-006t, T-web-002, T-web-005, T-api-001, T-api-002, T-api-003, T-api-004, T-api-005, T-api-008, T-api-009, T-api-010, T-api-011, T-api-012, T-api-013, T-api-014, T-api-015, T-api-016, T-api-018, T-api-019, T-api-026, T-api-027, T-worker-005, T-worker-006, T-worker-007, T-worker-008, T-worker-009, T-worker-012, T-api-020, T-worker-017 | pending |
 | T-web-006t | test | web | F-live-progress | T-web-002 | pending |
 | T-web-007 | impl | web | F-stage-flow | T-web-007t, T-web-002 | pending |
 | T-web-007t | test | web | F-stage-flow | T-web-002 | pending |
@@ -139,9 +139,9 @@ and .autospec/state.json. Do not edit by hand; re-run the script.
 | T-web-012t | test | web | F-stage-flow | – | pending |
 | T-web-013 | impl | web | F-qdrant-browser | T-web-013t, T-web-003 | pending |
 | T-web-013t | test | web | F-qdrant-browser | T-web-003 | pending |
-| T-web-014 | impl | web | F-collections | T-web-014t, T-web-004, T-api-011, T-api-026, T-worker-040t, T-worker-040 | skipped |
+| T-web-014 | impl | web | F-collections | T-web-014t, T-web-004, T-api-011, T-api-026, T-worker-040t, T-worker-040 | pending |
 | T-web-014t | test | web | F-collections | T-web-004 | pending |
-| T-web-015 | impl | web | F-status | T-web-015t, T-web-004, T-api-003, T-api-023, T-api-024, T-api-026, T-worker-010 | skipped |
+| T-web-015 | impl | web | F-status | T-web-015t, T-web-004, T-api-003, T-api-023, T-api-024, T-api-026, T-worker-010 | pending |
 | T-web-015t | test | web | F-status | T-web-004 | pending |
 | T-web-016 | impl | web | F-upload | T-web-016t, T-web-001, T-web-008 | pending |
 | T-web-016t | test | web | F-upload | T-web-001, T-web-008 | pending |
@@ -169,85 +169,85 @@ and .autospec/state.json. Do not edit by hand; re-run the script.
 | T-web-027t | test | web | F-generate | – | pending |
 | T-web-028 | impl | web | F-pipeline-graph | T-web-028t | pending |
 | T-web-028t | test | web | F-pipeline-graph | – | pending |
-| T-web-029 | impl | web | F-parse | T-web-029t, T-web-017, T-api-001, T-api-002, T-api-003, T-api-004, T-api-005, T-api-008, T-api-009, T-api-010, T-api-011, T-api-012, T-api-013, T-api-014, T-api-015, T-api-016, T-api-018, T-api-019, T-api-026, T-api-027, T-worker-005, T-worker-006, T-worker-007, T-worker-008, T-worker-009, T-worker-012, T-worker-017 | skipped |
+| T-web-029 | impl | web | F-parse | T-web-029t, T-web-017, T-api-001, T-api-002, T-api-003, T-api-004, T-api-005, T-api-008, T-api-009, T-api-010, T-api-011, T-api-012, T-api-013, T-api-014, T-api-015, T-api-016, T-api-018, T-api-019, T-api-026, T-api-027, T-worker-005, T-worker-006, T-worker-007, T-worker-008, T-worker-009, T-worker-012, T-worker-017 | pending |
 | T-web-029t | test | web | F-parse | T-web-017 | pending |
-| T-web-030 | impl | web | F-chunk | T-web-030t, T-web-018, T-web-019, T-api-001, T-api-002, T-api-003, T-api-004, T-api-005, T-api-008, T-api-009, T-api-010, T-api-011, T-api-012, T-api-013, T-api-014, T-api-015, T-api-016, T-api-018, T-api-019, T-api-026, T-api-027, T-worker-005, T-worker-006, T-worker-007, T-worker-008, T-worker-009, T-worker-012, T-worker-017, T-worker-022 | skipped |
+| T-web-030 | impl | web | F-chunk | T-web-030t, T-web-018, T-web-019, T-api-001, T-api-002, T-api-003, T-api-004, T-api-005, T-api-008, T-api-009, T-api-010, T-api-011, T-api-012, T-api-013, T-api-014, T-api-015, T-api-016, T-api-018, T-api-019, T-api-026, T-api-027, T-worker-005, T-worker-006, T-worker-007, T-worker-008, T-worker-009, T-worker-012, T-worker-017, T-worker-022 | pending |
 | T-web-030t | test | web | F-chunk | T-web-018, T-web-019 | pending |
-| T-web-031 | impl | web | F-embed | T-web-031t, T-web-020, T-web-021, T-web-022, T-web-023, T-api-001, T-api-002, T-api-003, T-api-004, T-api-005, T-api-008, T-api-009, T-api-010, T-api-011, T-api-012, T-api-013, T-api-014, T-api-015, T-api-016, T-api-018, T-api-019, T-api-026, T-api-027, T-worker-005, T-worker-006, T-worker-007, T-worker-008, T-worker-009, T-worker-012, T-worker-017, T-worker-022, T-worker-025 | skipped |
+| T-web-031 | impl | web | F-embed | T-web-031t, T-web-020, T-web-021, T-web-022, T-web-023, T-api-001, T-api-002, T-api-003, T-api-004, T-api-005, T-api-008, T-api-009, T-api-010, T-api-011, T-api-012, T-api-013, T-api-014, T-api-015, T-api-016, T-api-018, T-api-019, T-api-026, T-api-027, T-worker-005, T-worker-006, T-worker-007, T-worker-008, T-worker-009, T-worker-012, T-worker-017, T-worker-022, T-worker-025 | pending |
 | T-web-031t | test | web | F-embed | T-web-020, T-web-021, T-web-022, T-web-023 | pending |
-| T-web-032 | impl | web | F-store | T-web-032t, T-api-001, T-api-002, T-api-003, T-api-004, T-api-005, T-api-008, T-api-009, T-api-010, T-api-011, T-api-012, T-api-013, T-api-014, T-api-015, T-api-016, T-api-018, T-api-019, T-api-026, T-api-027, T-worker-005, T-worker-006, T-worker-007, T-worker-008, T-worker-009, T-worker-012, T-worker-017, T-worker-022, T-worker-025, T-worker-027, T-api-006, T-api-007, T-api-021 | skipped |
+| T-web-032 | impl | web | F-store | T-web-032t, T-api-001, T-api-002, T-api-003, T-api-004, T-api-005, T-api-008, T-api-009, T-api-010, T-api-011, T-api-012, T-api-013, T-api-014, T-api-015, T-api-016, T-api-018, T-api-019, T-api-026, T-api-027, T-worker-005, T-worker-006, T-worker-007, T-worker-008, T-worker-009, T-worker-012, T-worker-017, T-worker-022, T-worker-025, T-worker-027, T-api-006, T-api-007, T-api-021 | pending |
 | T-web-032t | test | web | F-store | – | pending |
-| T-web-033 | impl | web | F-transform | T-web-033t, T-api-001, T-api-002, T-api-003, T-api-004, T-api-005, T-api-008, T-api-009, T-api-010, T-api-011, T-api-012, T-api-013, T-api-014, T-api-015, T-api-016, T-api-018, T-api-019, T-api-026, T-api-027, T-worker-005, T-worker-006, T-worker-007, T-worker-008, T-worker-009, T-worker-012, T-worker-017, T-worker-022, T-worker-025, T-worker-027, T-api-017, T-worker-029 | skipped |
+| T-web-033 | impl | web | F-transform | T-web-033t, T-api-001, T-api-002, T-api-003, T-api-004, T-api-005, T-api-008, T-api-009, T-api-010, T-api-011, T-api-012, T-api-013, T-api-014, T-api-015, T-api-016, T-api-018, T-api-019, T-api-026, T-api-027, T-worker-005, T-worker-006, T-worker-007, T-worker-008, T-worker-009, T-worker-012, T-worker-017, T-worker-022, T-worker-025, T-worker-027, T-api-017, T-worker-029 | pending |
 | T-web-033t | test | web | F-transform | – | pending |
-| T-web-034 | impl | web | F-retrieve | T-web-034t, T-web-024, T-api-001, T-api-002, T-api-003, T-api-004, T-api-005, T-api-008, T-api-009, T-api-010, T-api-011, T-api-012, T-api-013, T-api-014, T-api-015, T-api-016, T-api-018, T-api-019, T-api-026, T-api-027, T-worker-005, T-worker-006, T-worker-007, T-worker-008, T-worker-009, T-worker-012, T-worker-017, T-worker-022, T-worker-025, T-worker-027, T-api-017, T-worker-033 | skipped |
+| T-web-034 | impl | web | F-retrieve | T-web-034t, T-web-024, T-api-001, T-api-002, T-api-003, T-api-004, T-api-005, T-api-008, T-api-009, T-api-010, T-api-011, T-api-012, T-api-013, T-api-014, T-api-015, T-api-016, T-api-018, T-api-019, T-api-026, T-api-027, T-worker-005, T-worker-006, T-worker-007, T-worker-008, T-worker-009, T-worker-012, T-worker-017, T-worker-022, T-worker-025, T-worker-027, T-api-017, T-worker-033 | pending |
 | T-web-034t | test | web | F-retrieve | T-web-024 | pending |
-| T-web-035 | impl | web | F-rerank | T-web-035t, T-web-025, T-api-001, T-api-002, T-api-003, T-api-004, T-api-005, T-api-008, T-api-009, T-api-010, T-api-011, T-api-012, T-api-013, T-api-014, T-api-015, T-api-016, T-api-018, T-api-019, T-api-026, T-api-027, T-worker-005, T-worker-006, T-worker-007, T-worker-008, T-worker-009, T-worker-012, T-worker-017, T-worker-022, T-worker-025, T-worker-027, T-api-017, T-worker-033, T-worker-035 | skipped |
+| T-web-035 | impl | web | F-rerank | T-web-035t, T-web-025, T-api-001, T-api-002, T-api-003, T-api-004, T-api-005, T-api-008, T-api-009, T-api-010, T-api-011, T-api-012, T-api-013, T-api-014, T-api-015, T-api-016, T-api-018, T-api-019, T-api-026, T-api-027, T-worker-005, T-worker-006, T-worker-007, T-worker-008, T-worker-009, T-worker-012, T-worker-017, T-worker-022, T-worker-025, T-worker-027, T-api-017, T-worker-033, T-worker-035 | pending |
 | T-web-035t | test | web | F-rerank | T-web-025 | pending |
 | T-web-036 | impl | web | F-generate | T-web-036t, T-web-026, T-web-027 | pending |
 | T-web-036t | test | web | F-generate | T-web-026, T-web-027 | pending |
 | T-web-037 | impl | web | F-stage-flow | T-web-037t, T-web-007, T-web-009, T-web-011, T-web-012 | pending |
 | T-web-037t | test | web | F-stage-flow | T-web-002 | pending |
-| T-web-038 | impl | web | F-upload | T-web-038t, T-web-001, T-web-002, T-web-008, T-web-016, T-api-001, T-api-003, T-api-008, T-api-009, T-api-010, T-api-026 | skipped |
+| T-web-038 | impl | web | F-upload | T-web-038t, T-web-001, T-web-002, T-web-008, T-web-016, T-api-001, T-api-003, T-api-008, T-api-009, T-api-010, T-api-026 | pending |
 | T-web-038t | test | web | F-upload | T-web-001 | pending |
-| T-web-039 | impl | web | F-stage-flow | T-web-039t, T-web-006, T-web-010, T-web-037, T-web-029, T-api-001, T-api-002, T-api-003, T-api-004, T-api-005, T-api-008, T-api-009, T-api-010, T-api-011, T-api-012, T-api-013, T-api-014, T-api-015, T-api-016, T-api-018, T-api-019, T-api-026, T-api-027, T-worker-005, T-worker-006, T-worker-007, T-worker-008, T-worker-009, T-worker-012, T-worker-017, T-worker-022, T-worker-025, T-worker-027 | skipped |
+| T-web-039 | impl | web | F-stage-flow | T-web-039t, T-web-006, T-web-010, T-web-037, T-web-029, T-api-001, T-api-002, T-api-003, T-api-004, T-api-005, T-api-008, T-api-009, T-api-010, T-api-011, T-api-012, T-api-013, T-api-014, T-api-015, T-api-016, T-api-018, T-api-019, T-api-026, T-api-027, T-worker-005, T-worker-006, T-worker-007, T-worker-008, T-worker-009, T-worker-012, T-worker-017, T-worker-022, T-worker-025, T-worker-027 | pending |
 | T-web-039t | test | web | F-stage-flow | T-web-002 | pending |
-| T-web-040 | impl | web | F-qdrant-browser | T-web-040t, T-web-003, T-web-013, T-api-001, T-api-002, T-api-003, T-api-004, T-api-005, T-api-008, T-api-009, T-api-010, T-api-011, T-api-012, T-api-013, T-api-014, T-api-015, T-api-016, T-api-018, T-api-019, T-api-026, T-api-027, T-worker-005, T-worker-006, T-worker-007, T-worker-008, T-worker-009, T-worker-012, T-worker-017, T-worker-022, T-worker-025, T-worker-027, T-api-006, T-api-007, T-api-021 | skipped |
+| T-web-040 | impl | web | F-qdrant-browser | T-web-040t, T-web-003, T-web-013, T-api-001, T-api-002, T-api-003, T-api-004, T-api-005, T-api-008, T-api-009, T-api-010, T-api-011, T-api-012, T-api-013, T-api-014, T-api-015, T-api-016, T-api-018, T-api-019, T-api-026, T-api-027, T-worker-005, T-worker-006, T-worker-007, T-worker-008, T-worker-009, T-worker-012, T-worker-017, T-worker-022, T-worker-025, T-worker-027, T-api-006, T-api-007, T-api-021 | pending |
 | T-web-040t | test | web | F-qdrant-browser | T-web-003 | pending |
-| T-web-041 | impl | web | F-settings | T-web-041t, T-web-004, T-api-012, T-api-022, T-api-026 | skipped |
+| T-web-041 | impl | web | F-settings | T-web-041t, T-web-004, T-api-012, T-api-022, T-api-026 | pending |
 | T-web-041t | test | web | F-settings | T-web-004 | pending |
-| T-web-042 | impl | web | F-pipeline-graph | T-web-042t, T-web-004, T-web-028, T-api-025, T-api-026, T-worker-039 | skipped |
+| T-web-042 | impl | web | F-pipeline-graph | T-web-042t, T-web-004, T-web-028, T-api-025, T-api-026, T-worker-039 | pending |
 | T-web-042t | test | web | F-pipeline-graph | T-web-004 | pending |
-| T-web-043 | impl | web | F-generate | T-web-043t, T-web-006, T-web-010, T-web-037, T-web-033, T-web-034, T-web-035, T-web-036, T-api-001, T-api-002, T-api-003, T-api-004, T-api-005, T-api-008, T-api-009, T-api-010, T-api-011, T-api-012, T-api-013, T-api-014, T-api-015, T-api-016, T-api-018, T-api-019, T-api-026, T-api-027, T-worker-005, T-worker-006, T-worker-007, T-worker-008, T-worker-009, T-worker-012, T-worker-017, T-worker-022, T-worker-025, T-worker-027, T-api-017, T-worker-029, T-worker-033, T-worker-035, T-worker-038 | skipped |
+| T-web-043 | impl | web | F-generate | T-web-043t, T-web-006, T-web-010, T-web-037, T-web-033, T-web-034, T-web-035, T-web-036, T-api-001, T-api-002, T-api-003, T-api-004, T-api-005, T-api-008, T-api-009, T-api-010, T-api-011, T-api-012, T-api-013, T-api-014, T-api-015, T-api-016, T-api-018, T-api-019, T-api-026, T-api-027, T-worker-005, T-worker-006, T-worker-007, T-worker-008, T-worker-009, T-worker-012, T-worker-017, T-worker-022, T-worker-025, T-worker-027, T-api-017, T-worker-029, T-worker-033, T-worker-035, T-worker-038 | pending |
 | T-web-043t | test | web | F-generate | T-web-002 | pending |
 | T-worker-001 | impl | worker | F-chunk | T-worker-001t | done |
 | T-worker-001t | test | worker | F-chunk | – | done |
 | T-worker-002 | impl | worker | F-embed | T-worker-002t | done |
 | T-worker-002t | test | worker | F-embed | – | done |
-| T-worker-003 | impl | worker | F-embed | T-worker-003t | pending |
-| T-worker-003t | test | worker | F-embed | – | pending |
-| T-worker-004 | impl | worker | F-embed | T-worker-004t | pending |
-| T-worker-004t | test | worker | F-embed | – | pending |
-| T-worker-005 | impl | worker | F-stage-flow | T-worker-005t | pending |
-| T-worker-005t | test | worker | F-stage-flow | – | pending |
+| T-worker-003 | impl | worker | F-embed | T-worker-003t | done |
+| T-worker-003t | test | worker | F-embed | – | done |
+| T-worker-004 | impl | worker | F-embed | T-worker-004t | done |
+| T-worker-004t | test | worker | F-embed | – | done |
+| T-worker-005 | impl | worker | F-stage-flow | T-worker-005t | done |
+| T-worker-005t | test | worker | F-stage-flow | – | done |
 | T-worker-006 | impl | worker | F-stage-flow | T-worker-006t | pending |
-| T-worker-006t | test | worker | F-stage-flow | – | pending |
-| T-worker-007 | impl | worker | F-live-progress | T-worker-007t | pending |
-| T-worker-007t | test | worker | F-live-progress | – | pending |
+| T-worker-006t | test | worker | F-stage-flow | – | done |
+| T-worker-007 | impl | worker | F-live-progress | T-worker-007t | done |
+| T-worker-007t | test | worker | F-live-progress | – | done |
 | T-worker-008 | impl | worker | F-stage-flow | T-worker-008t, T-worker-005, T-worker-006, T-worker-007 | pending |
-| T-worker-008t | test | worker | F-stage-flow | – | pending |
+| T-worker-008t | test | worker | F-stage-flow | – | done |
 | T-worker-009 | impl | worker | F-stage-flow | T-worker-009t, T-worker-008 | pending |
-| T-worker-009t | test | worker | F-stage-flow | – | pending |
-| T-worker-010 | impl | worker | F-status | T-worker-010t | pending |
-| T-worker-010t | test | worker | F-status | – | pending |
-| T-worker-011 | impl | worker | F-store | T-worker-011t | pending |
-| T-worker-011t | test | worker | F-store | – | pending |
-| T-worker-012 | impl | worker | F-embed | T-worker-012t | pending |
-| T-worker-012t | test | worker | F-embed | – | pending |
-| T-worker-013 | impl | worker | F-parse | T-worker-013t | pending |
-| T-worker-013t | test | worker | F-parse | – | pending |
-| T-worker-014 | impl | worker | F-parse | T-worker-014t, T-worker-013 | pending |
-| T-worker-014t | test | worker | F-parse | – | pending |
-| T-worker-015 | impl | worker | F-parse | T-worker-015t | pending |
-| T-worker-015t | test | worker | F-parse | – | pending |
-| T-worker-016 | impl | worker | F-parse | T-worker-016t, T-worker-014, T-worker-015 | pending |
-| T-worker-016t | test | worker | F-parse | – | pending |
+| T-worker-009t | test | worker | F-stage-flow | – | done |
+| T-worker-010 | impl | worker | F-status | T-worker-010t | done |
+| T-worker-010t | test | worker | F-status | – | done |
+| T-worker-011 | impl | worker | F-store | T-worker-011t | done |
+| T-worker-011t | test | worker | F-store | – | done |
+| T-worker-012 | impl | worker | F-embed | T-worker-012t | done |
+| T-worker-012t | test | worker | F-embed | – | done |
+| T-worker-013 | impl | worker | F-parse | T-worker-013t | done |
+| T-worker-013t | test | worker | F-parse | – | done |
+| T-worker-014 | impl | worker | F-parse | T-worker-014t, T-worker-013 | done |
+| T-worker-014t | test | worker | F-parse | – | done |
+| T-worker-015 | impl | worker | F-parse | T-worker-015t | done |
+| T-worker-015t | test | worker | F-parse | – | done |
+| T-worker-016 | impl | worker | F-parse | T-worker-016t, T-worker-014, T-worker-015 | done |
+| T-worker-016t | test | worker | F-parse | – | done |
 | T-worker-017 | impl | worker | F-parse | T-worker-017t, T-worker-009, T-worker-016 | pending |
-| T-worker-017t | test | worker | F-parse | – | pending |
-| T-worker-018 | impl | worker | F-chunk | T-worker-018t | pending |
-| T-worker-018t | test | worker | F-chunk | – | pending |
-| T-worker-019 | impl | worker | F-chunk | T-worker-019t | pending |
-| T-worker-019t | test | worker | F-chunk | – | pending |
-| T-worker-020 | impl | worker | F-chunk | T-worker-020t, T-worker-012 | pending |
-| T-worker-020t | test | worker | F-chunk | – | pending |
-| T-worker-021 | impl | worker | F-chunk | T-worker-021t, T-worker-018, T-worker-019, T-worker-020 | pending |
-| T-worker-021t | test | worker | F-chunk | – | pending |
+| T-worker-017t | test | worker | F-parse | – | done |
+| T-worker-018 | impl | worker | F-chunk | T-worker-018t | done |
+| T-worker-018t | test | worker | F-chunk | – | done |
+| T-worker-019 | impl | worker | F-chunk | T-worker-019t | done |
+| T-worker-019t | test | worker | F-chunk | – | done |
+| T-worker-020 | impl | worker | F-chunk | T-worker-020t, T-worker-012 | done |
+| T-worker-020t | test | worker | F-chunk | – | done |
+| T-worker-021 | impl | worker | F-chunk | T-worker-021t, T-worker-018, T-worker-019, T-worker-020 | done |
+| T-worker-021t | test | worker | F-chunk | – | done |
 | T-worker-022 | impl | worker | F-chunk | T-worker-022t, T-worker-001, T-worker-009, T-worker-021 | pending |
-| T-worker-022t | test | worker | F-chunk | – | pending |
-| T-worker-023 | impl | worker | F-embed | T-worker-023t, T-worker-012 | pending |
-| T-worker-023t | test | worker | F-embed | – | pending |
-| T-worker-024 | impl | worker | F-embed | T-worker-024t, T-worker-002, T-worker-003, T-worker-004, T-worker-023 | pending |
-| T-worker-024t | test | worker | F-embed | – | pending |
-| T-worker-025 | impl | worker | F-embed | T-worker-025t, T-worker-009, T-worker-024 | skipped |
+| T-worker-022t | test | worker | F-chunk | – | done |
+| T-worker-023 | impl | worker | F-embed | T-worker-023t, T-worker-012 | done |
+| T-worker-023t | test | worker | F-embed | – | done |
+| T-worker-024 | impl | worker | F-embed | T-worker-024t, T-worker-002, T-worker-003, T-worker-004, T-worker-023 | done |
+| T-worker-024t | test | worker | F-embed | – | done |
+| T-worker-025 | impl | worker | F-embed | T-worker-025t, T-worker-009, T-worker-024 | pending |
 | T-worker-025t | test | worker | F-embed | – | pending |
 | T-worker-026 | impl | worker | F-store | T-worker-026t | pending |
 | T-worker-026t | test | worker | F-store | – | pending |
@@ -275,7 +275,7 @@ and .autospec/state.json. Do not edit by hand; re-run the script.
 | T-worker-037t | test | worker | F-generate | – | pending |
 | T-worker-038 | impl | worker | F-generate | T-worker-038t, T-worker-009, T-worker-037 | pending |
 | T-worker-038t | test | worker | F-generate | – | pending |
-| T-worker-039 | impl | worker | F-pipeline-graph | T-worker-039t, T-worker-016, T-worker-021, T-worker-024, T-worker-026, T-worker-028, T-worker-032, T-worker-034, T-worker-037 | skipped |
+| T-worker-039 | impl | worker | F-pipeline-graph | T-worker-039t, T-worker-016, T-worker-021, T-worker-024, T-worker-026, T-worker-028, T-worker-032, T-worker-034, T-worker-037 | pending |
 | T-worker-039t | test | worker | F-pipeline-graph | – | pending |
 | T-worker-040 | impl | worker | F-collections | T-worker-040t, T-worker-011 | pending |
 | T-worker-040t | test | worker | F-collections | – | pending |
