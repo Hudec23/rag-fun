@@ -162,7 +162,7 @@
       "reason": "agent blocked: Task T-api-026 is blocked: verify command 2 cannot pass from the allowed edit scope\n(edit: services/api/src/rag_api/services/bootstrap.py only).\n\nImplementation state:\n- verify 1 (ruff format --check, ruff check, mypy src): PASS.\n- verify 2 (pytest tests/integration/test_bootstrap_seed.py): 3/4 pass \u2014 all three\n  `seed` tests green. test_run_migrations_creates_all_tables_and_second_run_is_no_op\n  fails deterministically in the TEST'S OWN `finally`, not in the implementation:\n  ObjectInUseError: database \"ragfun_mig_\u2026\" is being accessed by other users.\n\nRoot cause (measured in the api-dev image, reproduced twice):\n1. The test creates `eng = make_engine(mig_url)` (test line 129) and queries with it.\n   Each `async with eng.connect()` returns the asyncpg session to the pool \u2014 still open.\n2. The test's `finally` runs `DROP DATABASE` (line 143) BEFORE `await eng.dispose()`\n   (line 144). At DROP time, `eng`'s pool holds one idle open session on the throwaway\n   DB, and PostgreSQL refuses to drop a database that has other connected sessions.\n3. `run_migrations` leaks nothing: a standalone diagnostic showed 0 backends on the\n   throwaway DB after `run_migrations` returns, and exactly 1 (owned by the test's\n   `eng`) after the test's own `_public_table_names(eng)` call. The DROP then fails\n   with \"There is 1 other session using the database\".\n\nWhy no implementation of run_migrations(database_url) inside bootstrap.py can fix it:\n- The last `run_migrations` call (test line 139) precedes the final two queries\n  (lines 140-141); anything done to server-side session state is undone, because\n  those queries check out a pooled connection that stays open until the DROP.\n- The only remaining lever (server-side `idle_session_timeout` for new backends) is\n  (a) outside the docstring'd contract (\"alembic upgrade head programmatically\"),\n  (b) timing-flaky \u2014 the window between the last query and the DROP is milliseconds,\n  (c) ineffective for the already-open idle session anyway.\n- `make_engine` (pool config) is in rag_api/db/session.py (not in edit scope), and the\n  test file is locked (\"never modify a test file that existed before this task started\").\n\nProposed fix for the planner (one-line reorder in the locked test):\nin tests/integration/test_bootstrap_seed.py lines 142-144, run\n`await eng.dispose()` BEFORE `_autocommit(admin_url, \"DROP DATABASE \u2026\")`.\nThe implementation assertions (test lines 134-141) already pass; only the cleanup\nDROP fails. After the reorder, the current bootstrap.py implementation passes\nverify 2 in full.\n\nNote: the red-first task (T-api-026t) only required this test to be red against the\nstub \u2014 with the stub, the body raises before any query runs, so the `finally` DROP\nsucceeds and the ordering bug stays latent. It only manifests once a real\nimplementation exists.\n\nVerify 3 (e2e) was not runnable in the executor shell (no `docker compose`). The e2e\ntest exercises the api startup wiring in rag_api/main.py lifespan (lines 53-55:\n`asyncio.to_thread(bootstrap.run_migrations, cfg.database_url)` then `bootstrap.seed`),\nwhich matches this implementation; no throwaway-DB pattern is involved there."
     },
     "T-worker-001t": {
-      "status": "pending"
+      "status": "done"
     },
     "T-worker-001": {
       "status": "pending"
@@ -484,13 +484,15 @@
       "status": "pending"
     },
     "T-web-014": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-026 is blocked"
     },
     "T-web-015t": {
       "status": "pending"
     },
     "T-web-015": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-026 is blocked"
     },
     "T-web-016t": {
       "status": "pending"
@@ -635,7 +637,8 @@
       "status": "pending"
     },
     "T-web-038": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-026 is blocked"
     },
     "T-web-039t": {
       "status": "pending"
@@ -655,13 +658,15 @@
       "status": "pending"
     },
     "T-web-041": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-026 is blocked"
     },
     "T-web-042t": {
       "status": "pending"
     },
     "T-web-042": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-026 is blocked"
     },
     "T-web-043t": {
       "status": "pending"
