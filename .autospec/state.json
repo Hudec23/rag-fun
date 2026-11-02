@@ -84,10 +84,11 @@
       "reason": "failed 3 attempts; last: agent exited (1) without changing any file"
     },
     "T-api-014": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-014t is blocked"
     },
     "T-api-015t": {
-      "status": "pending"
+      "status": "done"
     },
     "T-api-015": {
       "status": "pending"
@@ -433,7 +434,8 @@
       "status": "pending"
     },
     "T-web-006": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-014 is skipped"
     },
     "T-web-007t": {
       "status": "pending"
@@ -571,19 +573,22 @@
       "status": "pending"
     },
     "T-web-029": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-014 is skipped"
     },
     "T-web-030t": {
       "status": "pending"
     },
     "T-web-030": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-014 is skipped"
     },
     "T-web-031t": {
       "status": "pending"
     },
     "T-web-031": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-014 is skipped"
     },
     "T-web-032t": {
       "status": "pending"
@@ -596,19 +601,22 @@
       "status": "pending"
     },
     "T-web-033": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-014 is skipped"
     },
     "T-web-034t": {
       "status": "pending"
     },
     "T-web-034": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-014 is skipped"
     },
     "T-web-035t": {
       "status": "pending"
     },
     "T-web-035": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-api-014 is skipped"
     },
     "T-web-036t": {
       "status": "pending"
@@ -632,7 +640,8 @@
       "status": "pending"
     },
     "T-web-039": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-web-006 is skipped"
     },
     "T-web-040t": {
       "status": "pending"
@@ -657,7 +666,8 @@
       "status": "pending"
     },
     "T-web-043": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-web-006 is skipped"
     }
   }
 }
