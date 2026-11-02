@@ -8,7 +8,7 @@ from conftest import assert_valid
 def test_every_variant_reported(api: httpx.Client) -> None:
     items = api.get("/pipeline-graphs").json()["items"]
     keys = [(g["stage"], g["variant"]) for g in items]
-    assert len(keys) == 21
+    assert len(keys) == 19
     assert keys[0] == ("parse", "docling_layout") and keys[-1] == ("generate", "default")
     for g in items:
         assert_valid(g, "shared/pipeline-graph.schema.json")

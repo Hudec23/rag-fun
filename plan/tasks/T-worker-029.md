@@ -24,6 +24,8 @@ max_attempts: 3
 Implement: transform job. The tests written by T-worker-029t define done.
 
 ## Context
+Always: run Haystack pipelines and other CPU work with `await asyncio.to_thread(...)`; read inputs with `ctx['store'].get_json(ctx['settings'].s3_bucket_artifacts, key)` / `get_bytes(ctx['settings'].s3_bucket_uploads, key)`; never call ctx['api'] or ctx['events'] directly except via `rep` (StageReporter); raise WorkerError for expected failures; return (artifact dict, summary dict). Recipe: strategy none → transform_artifact('none', question, None, [], None, n) without building a pipeline; else pipe = build_transform_pipeline(strategy, job.chat, ctx['models']); res = pipe.run({'prompt': {'question': q, 'n': num_queries}}, include_outputs_from={'prompt'}) in to_thread; reply = res['llm']['replies'][0].text; messages = [{'role': m.role.value, 'content': m.text} for m in res['prompt']['prompt']]; any exception from the run → WorkerError('LLM_ERROR', details={'reason': str(e)[:300]}).
+
 Stub in `services/worker/src/rag_worker/jobs/transform.py` (signatures are final; replace only the bodies that raise NotImplementedError):
 ```python
 from typing import Any

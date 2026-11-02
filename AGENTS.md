@@ -3,6 +3,11 @@
 You are doing ONE task in a larger system. Nobody will answer questions. Everything you need is
 in the task below and in the files it lists. Work until the verify commands pass.
 
+The runner (`scripts/autospec-run.py`) names your task in the prompt and starts a fresh session per
+task. Do only that task, then stop. It re-runs the verify commands itself, reverts edits outside
+`edit:`, commits and updates `.autospec/state.json` — never edit that file. On a retry the prompt
+points you to `.autospec/runs/<task id>/feedback.txt` with the failed check's output: read it first.
+
 There are two kinds of task:
 - **Test-writing task** — write unit tests for behaviour that does not exist yet. Do not implement it.
 - **Implementation task** — make the locked tests pass. Do not touch any test.

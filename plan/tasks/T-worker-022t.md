@@ -20,7 +20,7 @@ max_attempts: 3
 Write unit tests for: chunk job. Do not implement anything — the code under test is a stub that raises/throws 'not implemented'; task T-worker-022 implements it.
 
 ## Context
-Use `ctx` and put fixtures into ctx['store'] with put_json.
+Always: run Haystack pipelines and other CPU work with `await asyncio.to_thread(...)`; read inputs with `ctx['store'].get_json(ctx['settings'].s3_bucket_artifacts, key)` / `get_bytes(ctx['settings'].s3_bucket_uploads, key)`; never call ctx['api'] or ctx['events'] directly except via `rep` (StageReporter); raise WorkerError for expected failures; return (artifact dict, summary dict). Recipe: parse = get_json(artifacts, job.parse_artifact_key); docling_json = get_bytes(artifacts, parse['docling_json_key']).decode() when the key is set else None; pipe = pipelines.chunk.build_chunk_pipeline(strategy, job.params.model_dump(), ctx['models'], job.dense); out = run_chunk(pipe, strategy, parse, docling_json, job.file.file_id) (to_thread); stats = viz.stats.chunk_stats([c['char_count'] for c in chunks]); artifact {schema_version 1, stage chunk, strategy, params (model_dump), parse_strategy = parse['strategy'], source_text = parse['full_text'], chunks, stats, semantic = out['semantic']}; summary {stage, chunks, min_chars, max_chars, mean_chars} from stats. Use `ctx` and put fixtures into ctx['store'] with put_json.
 
 Stub in `services/worker/src/rag_worker/jobs/chunk.py` (signatures are final; replace only the bodies that raise NotImplementedError):
 ```python

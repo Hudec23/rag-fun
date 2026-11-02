@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -48,7 +49,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.qdrant = QdrantReader(AsyncQdrantClient(url=cfg.qdrant_url))
     app.state.http = httpx.AsyncClient()
     try:
-        bootstrap.run_migrations(cfg.database_url)
+        # alembic's env.py calls asyncio.run -> must run outside the event loop
+        await asyncio.to_thread(bootstrap.run_migrations, cfg.database_url)
         async with app.state.sessionmaker() as session:
             await bootstrap.seed(session, app.state.store, cfg)
     except NotImplementedError:

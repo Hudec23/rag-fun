@@ -77,7 +77,9 @@ async def start_stage(
 ) -> StageRunRow:
     """1. latest = latest_rows; check_can_start. 2. Insert row: id new_id, version latest+1 (or 1),
     status queued, params, created_at utcnow. 3. mark_stale. 4. Unless keep_plan: run.run_all_plan = [].
-    5. Flush. 6. payload = await job_payloads.build_payload(session, run, row, latest);
+    5. Flush. 6. payload = await job_payloads.build_payload(session, run, row, latest) — call it
+    through the module (`from rag_api.services import job_payloads` at the top, then
+    `job_payloads.build_payload(...)`) so tests can monkeypatch it;
     queue.enqueue(stage, payload, catalog.QUEUE_OF[stage]). 7. Publish run.updated reason
     'stage_queued' (and a second one with 'stages_stale' if mark_stale changed anything)."""
     raise NotImplementedError("not implemented")
@@ -94,7 +96,7 @@ One test per case, named after the case. Follow the style of the example test fi
 5. check_can_start('parse') when parse latest is queued → STAGE_ALREADY_RUNNING details {'stage': 'parse'}
 6. check_can_start('retrieve') with nothing run → ok; 'generate' without retrieve → missing 'retrieve'
 7. mark_stale('parse') with chunk done, embed failed, store queued → chunk + embed set stale, returns ['chunk', 'embed'], store untouched
-8. start_stage (monkeypatch job_payloads.build_payload to return {'p': 1}) on an ingest run → row version 1 status queued; queue.jobs == [('parse', {'p': 1}, 'ingest')]; bus published run.updated reason 'stage_queued' with run_kind 'ingest'
+8. start_stage (monkeypatch.setattr('rag_api.services.job_payloads.build_payload', fake async fn returning {'p': 1})) on an ingest run → row version 1 status queued; queue.jobs == [('parse', {'p': 1}, 'ingest')]; bus published run.updated reason 'stage_queued' with run_kind 'ingest'
 9. start_stage parse again after v1 done with chunk done → version 2, chunk latest stale, bus reasons ['stage_queued', 'stages_stale']
 10. start_stage clears run.run_all_plan unless keep_plan=True
 11. stage_run_out formats timestamps with to_iso and keeps None

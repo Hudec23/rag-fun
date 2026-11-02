@@ -24,6 +24,8 @@ max_attempts: 3
 Implement: rerank job. The tests written by T-worker-035t define done.
 
 ## Context
+Always: run Haystack pipelines and other CPU work with `await asyncio.to_thread(...)`; read inputs with `ctx['store'].get_json(ctx['settings'].s3_bucket_artifacts, key)` / `get_bytes(ctx['settings'].s3_bucket_uploads, key)`; never call ctx['api'] or ctx['events'] directly except via `rep` (StageReporter); raise WorkerError for expected failures; return (artifact dict, summary dict). Recipe: ret = get_json(retrieve_artifact_key); before = [f['hit'] for f in ret['fused']]; enabled → pipe = build_rerank_pipeline(job.model, top_n, ctx['models']); docs = pipe.run({'ranker': {'query': job.question, 'documents': [hit_to_document(h) for h in before]}})['ranker']['documents'] in to_thread; art = rerank_artifact(enabled, model or None, top_n, question, before, docs or None).
+
 Stub in `services/worker/src/rag_worker/jobs/rerank.py` (signatures are final; replace only the bodies that raise NotImplementedError):
 ```python
 from typing import Any

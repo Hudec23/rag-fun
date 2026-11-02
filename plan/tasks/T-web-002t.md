@@ -81,6 +81,15 @@ export function startQueryStage(
   throw new Error('not implemented')
 }
 
+/** POST /query-runs/{runId}/run-all { from_stage, params } → QueryRun (200 or 202). */
+export function runAllQuery(
+  _runId: string,
+  _fromStage: QueryStage | null,
+  _params: { transform: object; retrieve: object; rerank: object; generate: object },
+): Promise<QueryRun> {
+  throw new Error('not implemented')
+}
+
 /** GET /stage-runs?run_id=&stage= (all versions, newest first). */
 export function listStageRuns(_runId: string, _stage: Stage): Promise<StageRunList> {
   throw new Error('not implemented')
@@ -104,9 +113,10 @@ One test per case, named after the case. Follow the style of the example test fi
 2. startIngestStage(r, 'chunk', p) → POST /api/v1/ingest-runs/r/stages/chunk { params: p }
 3. runAllIngest(r, null, params) → POST /ingest-runs/r/run-all { from_stage: null, params }
 4. createQueryRun(c, 'q?') → POST /query-runs { collection_id: c, question: 'q?' }; startQueryStage(r, 'retrieve', p) → /query-runs/r/stages/retrieve
-5. listStageRuns(r, 'parse') → GET /stage-runs?run_id=r&stage=parse
-6. getArtifact(id) → GET /stage-runs/{id}/artifact returns the JSON; pageImageUrl('s', 2) == '/api/v1/stage-runs/s/pages/2'
-7. 409 STAGE_PREREQUISITE_MISSING → ApiError with details.missing
+5. runAllQuery(r, null, params) → POST /query-runs/r/run-all { from_stage: null, params }
+6. listStageRuns(r, 'parse') → GET /stage-runs?run_id=r&stage=parse
+7. getArtifact(id) → GET /stage-runs/{id}/artifact returns the JSON; pageImageUrl('s', 2) == '/api/v1/stage-runs/s/pages/2'
+8. 409 STAGE_PREREQUISITE_MISSING → ApiError with details.missing
 
 ## Do not
 - Do not write implementation code (not even to make a test compile).

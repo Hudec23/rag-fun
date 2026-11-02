@@ -7,7 +7,7 @@ import { renderWithProviders } from '../setup/render'
 
 test('rerank view shows rank movement', () => {
   renderWithProviders(<RerankView stageRunId="k" artifact={RERANK} />)
-  expect(screen.getByText('↑1')).toBeInTheDocument()
+  expect(screen.getAllByText('↑1')).toHaveLength(2)
   expect(screen.getByText('↓1')).toBeInTheDocument()
   expect(screen.getByText('0.9700')).toBeInTheDocument()
 })

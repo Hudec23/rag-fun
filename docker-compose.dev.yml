@@ -31,7 +31,7 @@ services:
       postgres-test: { condition: service_healthy }
       redis-test: { condition: service_healthy }
       qdrant-test: { condition: service_started }
-      s3-test: { condition: service_started }
+      s3-test: { condition: service_healthy }
 
   worker-dev:
     build: { context: services/worker, target: dev }   # dev target includes baked model files
@@ -44,7 +44,7 @@ services:
     depends_on:
       redis-test: { condition: service_healthy }
       qdrant-test: { condition: service_started }
-      s3-test: { condition: service_started }
+      s3-test: { condition: service_healthy }
 
   web-dev:
     image: node:24.19.0-slim
@@ -69,7 +69,8 @@ services:
   s3-test:
     image: rustfs/rustfs:1.0.3
     environment: { RUSTFS_ACCESS_KEY: ragfun, RUSTFS_SECRET_KEY: ragfun-secret, RUSTFS_VOLUMES: /data, RUSTFS_ADDRESS: "0.0.0.0:9000" }
-    tmpfs: [/data]
+    tmpfs: ["/data:uid=10001,gid=10001"]   # rustfs runs as uid 10001; a root-owned tmpfs crashes it
+    healthcheck: { test: ["CMD", "curl", "-fs", "http://127.0.0.1:9000/health"], interval: 2s, retries: 30 }
 
 volumes:
   api-venv:

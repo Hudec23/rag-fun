@@ -6,7 +6,8 @@ export interface ChunkViewProps {
 }
 
 /**
- * Header: "<count> chunks · <min>–<max> chars · mean <mean>" + strategy name. Tabs "Source"
+ * Header: "<count> chunks · <min>–<max> chars · mean <mean>" + strategy name. Tabs are
+ * <button role="tab"> (accessible name = label) above one <div role="tabpanel">: "Source"
  * (<ChunkHighlighter>), "Cards" (one card per chunk: #index, element_type badge, pages, section path
  * joined ' › ', text), "Histogram" (<LengthHistogram>). Semantic strategy: extra tab "Breakpoints"
  * listing gaps with distance (3 decimals) and a ✂ marker where is_break.

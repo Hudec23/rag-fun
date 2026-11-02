@@ -31,8 +31,11 @@ from rag_api.s3 import ObjectStore
 
 
 def run_migrations(database_url: str) -> None:
-    """alembic upgrade head programmatically (Config('alembic.ini') with script_location of the
-    package root, attributes['database_url'] = database_url)."""
+    """alembic upgrade head programmatically: cfg = alembic.config.Config();
+    cfg.set_main_option('script_location', str(Path(__file__).resolve().parents[3] / 'alembic'))
+    (= services/api/alembic in dev, /app/alembic in the runtime image); cfg.attributes['database_url']
+    = database_url; alembic.command.upgrade(cfg, 'head'). Synchronous: alembic/env.py calls
+    asyncio.run, so callers inside an event loop must use asyncio.to_thread(run_migrations, url)."""
     raise NotImplementedError("not implemented")
 
 async def seed(session: AsyncSession, store: ObjectStore, settings: Settings) -> None:
@@ -50,7 +53,7 @@ One test per case, named after the case. Follow the style of the example test fi
 1. seed on an empty DB → buckets 'uploads' and 'artifacts' in store.buckets, settings row 'app' with ollama.url == settings.ollama_url_default and chat_model 'qwen3:8b', exactly one collection named 'default' (bge-m3, Qdrant/bm25, 1024)
 2. seed twice → still one settings row and one collection; existing settings values are not overwritten
 3. seed when another collection already exists → no 'default' created
-4. run_migrations(DATABASE_URL of a fresh database 'ragfun_mig_<hex>' created with CREATE DATABASE) creates all 8 tables (query information_schema.tables); running it twice is a no-op
+4. run_migrations(DATABASE_URL of a fresh database 'ragfun_mig_<hex>' created with CREATE DATABASE), called as `await asyncio.to_thread(run_migrations, url)`, creates all 8 tables (query information_schema.tables); running it twice is a no-op
 
 ## Do not
 - Do not write implementation code (not even to make a test compile).

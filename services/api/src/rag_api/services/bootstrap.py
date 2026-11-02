@@ -7,8 +7,11 @@ from rag_api.s3 import ObjectStore
 
 
 def run_migrations(database_url: str) -> None:
-    """alembic upgrade head programmatically (Config('alembic.ini') with script_location of the
-    package root, attributes['database_url'] = database_url)."""
+    """alembic upgrade head programmatically: cfg = alembic.config.Config();
+    cfg.set_main_option('script_location', str(Path(__file__).resolve().parents[3] / 'alembic'))
+    (= services/api/alembic in dev, /app/alembic in the runtime image); cfg.attributes['database_url']
+    = database_url; alembic.command.upgrade(cfg, 'head'). Synchronous: alembic/env.py calls
+    asyncio.run, so callers inside an event loop must use asyncio.to_thread(run_migrations, url)."""
     raise NotImplementedError("not implemented")
 
 

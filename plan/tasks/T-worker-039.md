@@ -54,7 +54,7 @@ def graph_of(pipeline: Pipeline, stage: str, variant: str) -> dict[str, Any]:
     raise NotImplementedError("not implemented")
 
 def all_graphs(models: ModelSet, qdrant_url: str) -> list[dict[str, Any]]:
-    """Build every VARIANTS pipeline with default params (contracts defaults) and a placeholder
+    """Build every VARIANTS pipeline (19 pairs) with default params (contracts defaults) and a placeholder
     collection (bge-m3, 1024 dims, Qdrant/bm25, qdrant name rf_000…0, Ollama chat qwen3:8b) and
     return graph_of for each, in VARIANTS order. Must not contact any server."""
     raise NotImplementedError("not implemented")

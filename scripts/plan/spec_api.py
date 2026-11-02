@@ -120,7 +120,7 @@ u(13, "F-stage-flow", "stage state machine (latest/active/downstream/check/stale
   "check_can_start('parse') when parse latest is queued → STAGE_ALREADY_RUNNING details {'stage': 'parse'}",
   "check_can_start('retrieve') with nothing run → ok; 'generate' without retrieve → missing 'retrieve'",
   "mark_stale('parse') with chunk done, embed failed, store queued → chunk + embed set stale, returns ['chunk', 'embed'], store untouched",
-  "start_stage (monkeypatch job_payloads.build_payload to return {'p': 1}) on an ingest run → row version 1 status queued; queue.jobs == [('parse', {'p': 1}, 'ingest')]; bus published run.updated reason 'stage_queued' with run_kind 'ingest'",
+  "start_stage (monkeypatch.setattr('rag_api.services.job_payloads.build_payload', fake async fn returning {'p': 1})) on an ingest run → row version 1 status queued; queue.jobs == [('parse', {'p': 1}, 'ingest')]; bus published run.updated reason 'stage_queued' with run_kind 'ingest'",
   "start_stage parse again after v1 done with chunk done → version 2, chunk latest stale, bus reasons ['stage_queued', 'stages_stale']",
   "start_stage clears run.run_all_plan unless keep_plan=True",
   "stage_run_out formats timestamps with to_iso and keeps None",
@@ -166,7 +166,7 @@ u(18, "F-stage-flow", "worker callbacks record_started + record_result", "servic
   "record_result for a row already done → ignored (summary unchanged, no event)",
   "record_result done with a run-all plan [chunk] → chunk queued (monkeypatch job_payloads.build_payload → {}), plan []",
   "unknown stage_run_id → STAGE_RUN_NOT_FOUND",
-  "HTTP: POST /internal/v1/stage-results without X-Internal-Token → 401 UNAUTHORIZED; with token and the contract example (tests.conftest.FIXTURES / … build from contracts/openapi/internal.yaml example) → 204",
+  "HTTP via `client`: POST /internal/v1/stage-results without header X-Internal-Token → 401 code UNAUTHORIZED; with header = settings.internal_token and body {stage_run_id of a queued row, status 'done', artifact_key 'k', summary {'stage': 'parse', 'pages': 0, 'elements': 1, 'tables': 0, 'pictures': 0, 'chars': 5, 'ocr_used': False}, error None, started_at and finished_at '2026-11-01T18:22:05.123Z'} → 204",
 ], intro=INFRA, deps=["T-api-015"])
 u(19, "F-stage-flow", "stage runs + artifact proxy + page images", "services/artifacts.py", "integration/test_artifacts.py", ["get_stage_run", "list_stage_runs", "get_artifact", "get_page_image"], [
   "get_stage_run unknown → STAGE_RUN_NOT_FOUND",
@@ -222,5 +222,5 @@ u(26, "F-one-command", "bootstrap migrations + seed", "services/bootstrap.py", "
   "seed on an empty DB → buckets 'uploads' and 'artifacts' in store.buckets, settings row 'app' with ollama.url == settings.ollama_url_default and chat_model 'qwen3:8b', exactly one collection named 'default' (bge-m3, Qdrant/bm25, 1024)",
   "seed twice → still one settings row and one collection; existing settings values are not overwritten",
   "seed when another collection already exists → no 'default' created",
-  "run_migrations(DATABASE_URL of a fresh database 'ragfun_mig_<hex>' created with CREATE DATABASE) creates all 8 tables (query information_schema.tables); running it twice is a no-op",
+  "run_migrations(DATABASE_URL of a fresh database 'ragfun_mig_<hex>' created with CREATE DATABASE), called as `await asyncio.to_thread(run_migrations, url)`, creates all 8 tables (query information_schema.tables); running it twice is a no-op",
 ], intro=INFRA + " For run_migrations create a throwaway database via an AUTOCOMMIT connection on the postgres-test server and drop it afterwards.", deps=["T-api-003", "T-api-011"], e2e=["tests/e2e/test_bootstrap.py"])

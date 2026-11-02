@@ -24,7 +24,7 @@ max_attempts: 3
 Implement: parse job. The tests written by T-worker-017t define done.
 
 ## Context
-Use `ctx` (FakeObjectStore) and call `await parse(ctx, payload)` from rag_worker.jobs.parse.
+Always: run Haystack pipelines and other CPU work with `await asyncio.to_thread(...)`; read inputs with `ctx['store'].get_json(ctx['settings'].s3_bucket_artifacts, key)` / `get_bytes(ctx['settings'].s3_bucket_uploads, key)`; never call ctx['api'] or ctx['events'] directly except via `rep` (StageReporter); raise WorkerError for expected failures; return (artifact dict, summary dict). Recipe: data = get_bytes(uploads, job.file.s3_key); pipe = pipelines.parse.build_parse_pipeline(job.params.strategy, job.params.model_dump()); res = run_parse(pipe, strategy, data, mime, filename) (to_thread); elements, full_text = components.text_layout.assign_spans(res['elements']); for each page_no, png in res['page_images']: put_bytes(artifacts, keys.page_image_key(job.run_id, job.version, n), png, 'image/png') + rep.progress(i, n, f'page {i}/{n}'); docling_json → put_bytes(artifacts, keys.docling_json_key(...), utf-8, 'application/json'); build the parse artifact (schema_version 1, stage parse, strategy, file_id, mime, ocr_used, pages with image_key or None, elements, full_text, docling_json_key or None); summary pages/elements/tables/pictures (type picture)/chars/ocr_used. Use `ctx` (FakeObjectStore) and call `await parse(ctx, payload)` from rag_worker.jobs.parse.
 
 Stub in `services/worker/src/rag_worker/jobs/parse.py` (signatures are final; replace only the bodies that raise NotImplementedError):
 ```python

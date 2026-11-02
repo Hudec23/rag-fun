@@ -44,7 +44,7 @@ def graph_of(pipeline: Pipeline, stage: str, variant: str) -> dict[str, Any]:
     raise NotImplementedError("not implemented")
 
 def all_graphs(models: ModelSet, qdrant_url: str) -> list[dict[str, Any]]:
-    """Build every VARIANTS pipeline with default params (contracts defaults) and a placeholder
+    """Build every VARIANTS pipeline (19 pairs) with default params (contracts defaults) and a placeholder
     collection (bge-m3, 1024 dims, Qdrant/bm25, qdrant name rf_000…0, Ollama chat qwen3:8b) and
     return graph_of for each, in VARIANTS order. Must not contact any server."""
     raise NotImplementedError("not implemented")
@@ -54,7 +54,7 @@ Fixtures (services/worker/tests/conftest.py): `ctx` (job context: settings, stor
 
 ## Test cases
 One test per case, named after the case. Follow the style of the example test file listed under `read:` (fixtures, naming `test_<behaviour>`, exact asserts).
-1. all_graphs(FakeModelSet(), 'http://127.0.0.1:1') returns 21 graphs in VARIANTS order, each validating shared/pipeline-graph.schema.json, without network (socket guard)
+1. all_graphs(FakeModelSet(), 'http://127.0.0.1:1') returns 19 graphs in VARIANTS order, each validating shared/pipeline-graph.schema.json, without network (socket guard)
 2. chunk/semantic graph has node 'splitter' with custom True and type ending 'SemanticSplitter'; edge splitter.documents → annotator.documents
 3. retrieve/hybrid nodes include dense_embedder, dense_retriever, sparse_embedder, sparse_retriever
 4. init param named 'api_key' (anthropic chat cfg in a graph_of call) → value '"***"'

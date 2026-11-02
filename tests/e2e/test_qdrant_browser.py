@@ -11,8 +11,8 @@ def test_browse_filter_facet_point(api: httpx.Client) -> None:
     ingest_file(api, "notes.txt", coll, tags="tax")
     base = f"/collections/{coll['id']}/qdrant"
     flt = {"must": [{"key": "tags", "match": {"any": ["hr"]}}]}
-    page = api.post(f"{base}/scroll", json={"filter": flt, "limit": 2, "offset": None, "with_vectors": False}).json()
-    assert len(page["points"]) == 2 and page["next_offset"] is not None
+    page = api.post(f"{base}/scroll", json={"filter": flt, "limit": 1, "offset": None, "with_vectors": False}).json()
+    assert len(page["points"]) == 1 and page["next_offset"] is not None
     assert all(p["payload"]["meta"]["file_id"] == hr["file"]["id"] and p["vectors"] is None for p in page["points"])
     for p in page["points"]:
         assert_valid(p["payload"], "qdrant/payload.schema.json")

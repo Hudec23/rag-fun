@@ -81,7 +81,9 @@ async def start_stage(
 ) -> StageRunRow:
     """1. latest = latest_rows; check_can_start. 2. Insert row: id new_id, version latest+1 (or 1),
     status queued, params, created_at utcnow. 3. mark_stale. 4. Unless keep_plan: run.run_all_plan = [].
-    5. Flush. 6. payload = await job_payloads.build_payload(session, run, row, latest);
+    5. Flush. 6. payload = await job_payloads.build_payload(session, run, row, latest) — call it
+    through the module (`from rag_api.services import job_payloads` at the top, then
+    `job_payloads.build_payload(...)`) so tests can monkeypatch it;
     queue.enqueue(stage, payload, catalog.QUEUE_OF[stage]). 7. Publish run.updated reason
     'stage_queued' (and a second one with 'stages_stale' if mark_stale changed anything)."""
     raise NotImplementedError("not implemented")

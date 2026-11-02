@@ -55,6 +55,15 @@ export function startQueryStage(
   throw new Error('not implemented')
 }
 
+/** POST /query-runs/{runId}/run-all { from_stage, params } → QueryRun (200 or 202). */
+export function runAllQuery(
+  _runId: string,
+  _fromStage: QueryStage | null,
+  _params: { transform: object; retrieve: object; rerank: object; generate: object },
+): Promise<QueryRun> {
+  throw new Error('not implemented')
+}
+
 /** GET /stage-runs?run_id=&stage= (all versions, newest first). */
 export function listStageRuns(_runId: string, _stage: Stage): Promise<StageRunList> {
   throw new Error('not implemented')

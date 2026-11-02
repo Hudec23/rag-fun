@@ -55,7 +55,7 @@ One test per case, named after the case. Follow the style of the example test fi
 4. record_result for a row already done → ignored (summary unchanged, no event)
 5. record_result done with a run-all plan [chunk] → chunk queued (monkeypatch job_payloads.build_payload → {}), plan []
 6. unknown stage_run_id → STAGE_RUN_NOT_FOUND
-7. HTTP: POST /internal/v1/stage-results without X-Internal-Token → 401 UNAUTHORIZED; with token and the contract example (tests.conftest.FIXTURES / … build from contracts/openapi/internal.yaml example) → 204
+7. HTTP via `client`: POST /internal/v1/stage-results without header X-Internal-Token → 401 code UNAUTHORIZED; with header = settings.internal_token and body {stage_run_id of a queued row, status 'done', artifact_key 'k', summary {'stage': 'parse', 'pages': 0, 'elements': 1, 'tables': 0, 'pictures': 0, 'chars': 5, 'ocr_used': False}, error None, started_at and finished_at '2026-11-01T18:22:05.123Z'} → 204
 
 ## Do not
 - Do not write implementation code (not even to make a test compile).

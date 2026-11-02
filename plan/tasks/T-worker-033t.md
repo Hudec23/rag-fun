@@ -20,7 +20,7 @@ max_attempts: 3
 Write unit tests for: retrieve job. Do not implement anything — the code under test is a stub that raises/throws 'not implemented'; task T-worker-033 implements it.
 
 ## Context
-Integration test against qdrant-test (QDRANT_URL); use collection 'rf_' + uuid4().hex and delete it afterwards.
+Always: run Haystack pipelines and other CPU work with `await asyncio.to_thread(...)`; read inputs with `ctx['store'].get_json(ctx['settings'].s3_bucket_artifacts, key)` / `get_bytes(ctx['settings'].s3_bucket_uploads, key)`; never call ctx['api'] or ctx['events'] directly except via `rep` (StageReporter); raise WorkerError for expected failures; return (artifact dict, summary dict). Recipe: queries = transform artifact['queries'] if job.transform_artifact_key else [job.question]; ds = qdrant_admin.document_store(qdrant_url, qdrant_name, dims); pipe = build_retrieve_pipeline(mode, collection, ds, top_k, ctx['models']); per = run_retrieve(pipe, mode, queries, to_haystack_filters(job.params.filters)) in to_thread; per_query entries convert Documents with components.hits.to_hit(doc, rank); lists for RRF = [(qi, 'dense', docs), (qi, 'sparse', docs)] for every non-None list; fused = rrf_fuse(lists, rrf_k, top_k) → [{'hit': to_hit(doc, rank i+1, score), 'source_ranks'}]; for mode dense/sparse with ONE query fused = that list re-ranked 1..n keeping the original scores (source_ranks from that list). Integration test against qdrant-test (QDRANT_URL); use collection 'rf_' + uuid4().hex and delete it afterwards.
 
 Stub in `services/worker/src/rag_worker/jobs/retrieve.py` (signatures are final; replace only the bodies that raise NotImplementedError):
 ```python
@@ -46,7 +46,7 @@ One test per case, named after the case. Follow the style of the example test fi
 2. with a transform artifact (multi_query, 3 queries) → per_query length 3; fused deduplicated by doc_id
 3. fused hits ranks 1..n and source_ranks set; summary {'stage': 'retrieve', 'queries': n, 'hits': len(fused)}
 4. mode dense → fused == dense list re-ranked, sparse None
-5. missing collection → done with empty lists (or failed QDRANT_ERROR) — assert status done and fused == []
+5. collection never stored (document_store creates it empty) → status done, per_query[0].dense == [] and fused == []
 
 ## Do not
 - Do not write implementation code (not even to make a test compile).
