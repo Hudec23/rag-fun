@@ -80,7 +80,8 @@
       "status": "done"
     },
     "T-api-014t": {
-      "status": "pending"
+      "status": "blocked",
+      "reason": "failed 3 attempts; last: agent exited (1) without changing any file"
     },
     "T-api-014": {
       "status": "pending"
