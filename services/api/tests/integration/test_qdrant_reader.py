@@ -154,6 +154,10 @@ async def test_get_point_existing_and_unknown(reader: QdrantReader, seeded: Seed
     point = await reader.get_point(name, point_ids[0])
     assert point.id == point_ids[0]
     assert point.payload == payloads[0]
+    # the raw JSON view shows full vectors (openapi getQdrantPoint)
+    assert point.vectors is not None
+    assert len(point.vectors.dense) == 4
+    assert point.vectors.sparse.indices == SPARSE["indices"]
     unknown = uuid4().hex
     with pytest.raises(AppError) as excinfo:
         await reader.get_point(name, unknown)

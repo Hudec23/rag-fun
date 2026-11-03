@@ -162,9 +162,13 @@ class QdrantReader:
 
     async def get_point(self, qdrant_name: str, point_id: str) -> QdrantPoint:
         records = await self.client.retrieve(
-            qdrant_name, ids=[point_id], with_payload=True, with_vectors=False
+            qdrant_name, ids=[point_id], with_payload=True, with_vectors=True
         )
         if not records:
             raise AppError("POINT_NOT_FOUND", details={"point_id": point_id})
         record = records[0]
-        return QdrantPoint(id=_to_point_id(record.id), payload=record.payload or {}, vectors=None)
+        return QdrantPoint(
+            id=_to_point_id(record.id),
+            payload=record.payload or {},
+            vectors=_to_vectors(record.vector),
+        )
