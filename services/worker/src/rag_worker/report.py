@@ -6,8 +6,10 @@ from dataclasses import dataclass
 from typing import Any
 
 import structlog
+from pydantic import ValidationError
 
 from rag_worker.callbacks import ApiClient
+from rag_worker.errors import WorkerError
 from rag_worker.ids import to_iso, utcnow
 from rag_worker.keys import artifact_key
 from rag_worker.publisher import EventPublisher
@@ -152,4 +154,31 @@ async def run_stage(
     5. WorkerError e -> reporter.failed(e.error_body()); any other Exception -> failed with
        WorkerError('INTERNAL_ERROR', details={'exception': type(e).__name__}).error_body();
        return {'status': 'failed', 'code': code}. Never raises."""
-    raise NotImplementedError("not implemented")
+    try:
+        job = model.model_validate(payload)  # type: ignore[attr-defined]
+    except ValidationError as e:
+        log.error("stage payload invalid", error=str(e)[:300])
+        return {"status": "invalid"}
+    reporter = StageReporter(
+        StageContext(job.stage_run_id, job.run_id, job.stage, job.version),
+        ctx["api"],
+        ctx["events"],
+        ctx["store"],
+        ctx["settings"].s3_bucket_artifacts,
+    )
+    await reporter.started()
+    ctx["running"] += 1
+    try:
+        try:
+            artifact, summary = await body(job, reporter, ctx)
+            await reporter.done(artifact, summary)
+            return {"status": "done", "summary": summary}
+        except WorkerError as e:
+            await reporter.failed(e.error_body())
+            return {"status": "failed", "code": e.code}
+        except Exception as e:  # noqa: BLE001
+            err = WorkerError("INTERNAL_ERROR", details={"exception": type(e).__name__})
+            await reporter.failed(err.error_body())
+            return {"status": "failed", "code": err.code}
+    finally:
+        ctx["running"] -= 1
