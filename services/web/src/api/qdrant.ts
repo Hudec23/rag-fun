@@ -1,26 +1,33 @@
+import { apiFetch } from './client'
 import type { FacetResponse, PayloadFilter, QdrantInfo, QdrantPoint, ScrollResponse } from './types'
 
-export function getQdrantInfo(_collectionId: string): Promise<QdrantInfo> {
-  throw new Error('not implemented')
+export function getQdrantInfo(collectionId: string): Promise<QdrantInfo> {
+  return apiFetch<QdrantInfo>(`/collections/${collectionId}/qdrant`)
 }
 
 /** POST /collections/{id}/qdrant/scroll. */
 export function scrollPoints(
-  _collectionId: string,
-  _req: { filter: PayloadFilter; limit: number; offset: string | null; with_vectors: boolean },
+  collectionId: string,
+  req: { filter: PayloadFilter; limit: number; offset: string | null; with_vectors: boolean },
 ): Promise<ScrollResponse> {
-  throw new Error('not implemented')
+  return apiFetch<ScrollResponse>(`/collections/${collectionId}/qdrant/scroll`, {
+    method: 'POST',
+    body: req,
+  })
 }
 
 /** POST /collections/{id}/qdrant/count → number. */
-export function countPoints(_collectionId: string, _filter: PayloadFilter): Promise<number> {
-  throw new Error('not implemented')
+export function countPoints(collectionId: string, filter: PayloadFilter): Promise<number> {
+  return apiFetch<{ count: number }>(`/collections/${collectionId}/qdrant/count`, {
+    method: 'POST',
+    body: { filter },
+  }).then((res) => res.count)
 }
 
-export function getFacet(_collectionId: string, _key: string): Promise<FacetResponse> {
-  throw new Error('not implemented')
+export function getFacet(collectionId: string, key: string): Promise<FacetResponse> {
+  return apiFetch<FacetResponse>(`/collections/${collectionId}/qdrant/facets/${key}`)
 }
 
-export function getPoint(_collectionId: string, _pointId: string): Promise<QdrantPoint> {
-  throw new Error('not implemented')
+export function getPoint(collectionId: string, pointId: string): Promise<QdrantPoint> {
+  return apiFetch<QdrantPoint>(`/collections/${collectionId}/qdrant/points/${pointId}`)
 }
