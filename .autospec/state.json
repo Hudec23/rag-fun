@@ -335,7 +335,8 @@
       "status": "done"
     },
     "T-worker-029": {
-      "status": "pending"
+      "status": "blocked",
+      "reason": "agent blocked: T-worker-029 (attempt 2): services/worker/src/rag_worker/jobs/transform.py is implemented and verified \u2014 lint, types and 4 of 5 locked tests pass (none, multi_query, hyde, summary). The remaining test, test_chat_generator_error_fails_with_llm_error, is internally contradictory and cannot be passed by any implementation of the only editable file:\n\n- The locked helper _run (tests/unit/test_transform_job.py lines 55-59) unconditionally reads the artifact back: `await ctx[\"store\"].get_json(bucket, ARTIFACT_KEY)` after `transform(ctx, payload)` returns.\n- FakeObjectStore.get_json -> get_bytes (tests/fakes/__init__.py lines 16-18) raises WorkerError('ARTIFACT_NOT_FOUND') for a missing key. The LLM-error path stores no artifact: run_stage maps the WorkerError to reporter.failed() (src/rag_worker/report.py lines 176-178), and StageReporter.failed only calls api.stage_result + events.publish (report.py lines 112-136) \u2014 only done() stores the artifact.\n- The test then asserts (line 204) `ctx[\"store\"].objects == {}` \u2014 the store must be empty. But lines 183-205 contain no `await` between _run and that assertion, so the store state at the get_json call (line 182, inside _run) is identical to the state at line 204. For _run to return, the artifact key must be present in objects; for line 204 to pass, objects must be empty. Contradiction \u2014 verified empirically: the test fails at line 182 with ARTIFACT_NOT_FOUND.\n- No workaround exists within edit: only jobs/transform.py is editable; FakeObjectStore (no delete API) and the test are locked; a deferred background task cannot run between line 182 and line 204 (no awaits). Storing the artifact on failure would also violate the run_stage contract (artifact stored only on success) and the objects == {} assertion.\n\nSuggested planner fix: make the locked _run tolerate a missing artifact on the failure path (e.g. catch WorkerError with code ARTIFACT_NOT_FOUND and return artifact=None), as tests/unit/test_generate_job.py's _run already does."
     },
     "T-worker-030t": {
       "status": "done"
@@ -593,25 +594,29 @@
       "status": "done"
     },
     "T-web-032": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-027 is blocked"
     },
     "T-web-033t": {
       "status": "done"
     },
     "T-web-033": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-027 is blocked"
     },
     "T-web-034t": {
       "status": "done"
     },
     "T-web-034": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-027 is blocked"
     },
     "T-web-035t": {
       "status": "done"
     },
     "T-web-035": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-027 is blocked"
     },
     "T-web-036t": {
       "status": "done"
@@ -635,13 +640,15 @@
       "status": "done"
     },
     "T-web-039": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-027 is blocked"
     },
     "T-web-040t": {
       "status": "done"
     },
     "T-web-040": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-worker-027 is blocked"
     },
     "T-web-041t": {
       "status": "done"
@@ -659,7 +666,8 @@
       "status": "done"
     },
     "T-web-043": {
-      "status": "pending"
+      "status": "skipped",
+      "reason": "dependency T-web-033 is skipped"
     }
   }
 }
