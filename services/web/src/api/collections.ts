@@ -6,11 +6,11 @@ export function listCollections(): Promise<CollectionList> {
 }
 
 /** POST /collections → 201 Collection. */
-export function createCollection(_body: CollectionCreate): Promise<Collection> {
-  throw new Error('not implemented')
+export function createCollection(body: CollectionCreate): Promise<Collection> {
+  return apiFetch<Collection>('/collections', { method: 'POST', body })
 }
 
 /** DELETE /collections/{id} → 204. */
-export function deleteCollection(_id: string): Promise<void> {
-  throw new Error('not implemented')
+export function deleteCollection(id: string): Promise<void> {
+  return apiFetch<void>(`/collections/${id}`, { method: 'DELETE' })
 }
