@@ -1,0 +1,10 @@
+# .autospec/plan/executor.yaml — the model that runs phase 2. The planner writes it in step 1;
+# .autospec/kit/scripts/autospec-check.py sizes every task from it.
+model: qwen3.8-27b              # informational: the planner writes tasks for this model
+context_tokens: 65536           # the executor's context window
+# What one task makes the executor read: AGENTS.md + kit EXECUTOR.md + task file + `read:` + `locked:` files.
+# The rest of the window holds the harness's system prompt and tools, reasoning, tool output and
+# retry feedback. Omit to use 25% of context_tokens. Raise it for a bigger window, never to make
+# an oversized task fit — split the task instead.
+max_read_tokens: 16000
+max_edit_files: 3               # files one task may create or change
