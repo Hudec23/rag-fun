@@ -1,0 +1,37 @@
+# .autospec/plan/services/<name>.yaml
+# Every command runs from the repo root inside the runner container (which has Docker via DinD).
+# Run toolchains in their own containers so the runner image stays language-agnostic.
+name: api
+path: services/api
+language: typescript
+commands:
+  setup: docker compose -f docker-compose.dev.yml run --rm api-dev npm ci
+  build: docker compose -f docker-compose.dev.yml run --rm api-dev npm run build
+  lint:  docker compose -f docker-compose.dev.yml run --rm api-dev npm run lint   # incl. security linter + secret scan
+  test:  docker compose -f docker-compose.dev.yml run --rm api-dev npx vitest run   # full suite; green only once every task is done
+  # Run specific test files. {files} = space-separated paths RELATIVE TO `path` above.
+  # The runner uses this for regression so that tests which are red by design (written by test
+  # tasks whose implementation isn't done yet, acceptance tests of unfinished features) don't fail
+  # every task. Required when `regression` lists baseline_tests or done_tests.
+  test_files: docker compose -f docker-compose.dev.yml run --rm api-dev npx vitest run {files}
+# Tests from the walking skeleton that must always pass (health check, example module).
+baseline_tests:
+  - services/api/test/health.test.ts
+  - services/api/test/orders/get.test.ts
+# Run after every task: build + lint + baseline_tests + done_tests (`locked:` of every done impl task),
+# the last two in one test_files call.
+# Never the full `test` — acceptance tests of unfinished features are red by design.
+regression: [build, lint, baseline_tests, done_tests]
+
+# Example for a Go service. Go tests run per package, so test_files turns files into package dirs:
+# name: worker
+# path: services/worker
+# language: go
+# commands:
+#   setup: docker compose -f docker-compose.dev.yml run --rm worker-dev go mod download
+#   build: docker compose -f docker-compose.dev.yml run --rm worker-dev go build ./...
+#   lint:  docker compose -f docker-compose.dev.yml run --rm worker-dev go vet ./...
+#   test:  docker compose -f docker-compose.dev.yml run --rm worker-dev go test ./...
+#   test_files: docker compose -f docker-compose.dev.yml run --rm worker-dev sh -c 'go test $(for f in {files}; do echo ./$(dirname $f); done | sort -u)'
+# baseline_tests: [services/worker/internal/health/health_test.go]
+# regression: [build, lint, baseline_tests, done_tests]
