@@ -598,7 +598,7 @@
       "reason": "dependency T-worker-008 is blocked"
     },
     "T-web-031t": {
-      "status": "pending"
+      "status": "done"
     },
     "T-web-031": {
       "status": "skipped",
