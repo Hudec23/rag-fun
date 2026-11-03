@@ -658,7 +658,7 @@
       "reason": "dependency T-web-006 is skipped"
     },
     "T-web-040t": {
-      "status": "pending"
+      "status": "done"
     },
     "T-web-040": {
       "status": "skipped",
