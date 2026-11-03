@@ -172,3 +172,34 @@ What is new: the file formats (`.autospec/plan/services/*.yaml`, task frontmatte
 token and file-count limits (`.autospec/plan/executor.yaml`; defaults are heuristics for a 64K window —
 adjust after your first real run), and the test-task / impl-task split with auto-locking applied
 to a weak local executor.
+
+## Why the scripts matter
+
+A small local model can write good code in a narrow task. What it cannot do reliably is judge
+its own work: it says "all tests pass" without running them, edits a file it shouldn't, writes a
+test that asserts nothing, or breaks yesterday's work without noticing. Instructions alone don't
+fix that, because the model that forgets the rule is the same one asked to follow it.
+
+So the kit moves every judgement out of the model and into plain Python:
+
+| Instead of trusting the model to... | the scripts... |
+|---|---|
+| stay inside its task | diff the tree and revert anything outside `edit:` |
+| say when it is done | run `verify:` themselves and read the exit code |
+| write real tests | require `expect_fail:` to fail against the stub, so empty or always-true tests are caught |
+| keep earlier work intact | rerun build, lint and every test that was green before |
+| keep track of the plan | walk the dependency graph, commit on green, block and skip on red |
+| plan within its limits | check every task against `executor.yaml` before the run starts |
+
+**Deterministic, test-driven development.** The planner writes the acceptance tests and the
+exact unit test cases; a separate earlier task turns the cases into code that must be red;
+the implementation task must turn exactly those tests green without touching them; every later
+task must keep them green. "Done" is an exit code, not an opinion. The same plan gives the same
+checks on any machine, with any model: swap Qwen for a bigger model and nothing about what
+counts as correct changes. That is what makes an unattended overnight run trustworthy: every
+commit on `main` passed the gate, and every failure lands in `REPORT.md` with the exact command
+and output that failed.
+
+It also keeps the cost where it belongs. The strong model works only where judgement is needed
+(planning, unblocking); the weak model does the volume of typing; the gate itself costs no
+tokens at all.
