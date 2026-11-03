@@ -8,70 +8,88 @@ import type {
   StageRun,
   StageRunList,
 } from './types'
-import { API_BASE } from './client'
+import { API_BASE, apiFetch } from './client'
 
 /** POST /ingest-runs → 201 IngestRun. */
-export function createIngestRun(_fileId: string, _collectionId: string): Promise<IngestRun> {
-  throw new Error('not implemented')
+export function createIngestRun(fileId: string, collectionId: string): Promise<IngestRun> {
+  return apiFetch<IngestRun>('/ingest-runs', {
+    method: 'POST',
+    body: { file_id: fileId, collection_id: collectionId },
+  })
 }
 
-export function getIngestRun(_runId: string): Promise<IngestRun> {
-  throw new Error('not implemented')
+export function getIngestRun(runId: string): Promise<IngestRun> {
+  return apiFetch<IngestRun>(`/ingest-runs/${runId}`)
 }
 
 /** POST /ingest-runs/{runId}/stages/{stage} { params } → 202 StageRun. */
 export function startIngestStage(
-  _runId: string,
-  _stage: IngestStage,
-  _params: object,
+  runId: string,
+  stage: IngestStage,
+  params: object,
 ): Promise<StageRun> {
-  throw new Error('not implemented')
+  return apiFetch<StageRun>(`/ingest-runs/${runId}/stages/${stage}`, {
+    method: 'POST',
+    body: { params },
+  })
 }
 
 /** POST /ingest-runs/{runId}/run-all { from_stage, params } → IngestRun (200 or 202). */
 export function runAllIngest(
-  _runId: string,
-  _fromStage: IngestStage | null,
-  _params: IngestParamsAll,
+  runId: string,
+  fromStage: IngestStage | null,
+  params: IngestParamsAll,
 ): Promise<IngestRun> {
-  throw new Error('not implemented')
+  return apiFetch<IngestRun>(`/ingest-runs/${runId}/run-all`, {
+    method: 'POST',
+    body: { from_stage: fromStage, params },
+  })
 }
 
 /** POST /query-runs → 201 QueryRun. */
-export function createQueryRun(_collectionId: string, _question: string): Promise<QueryRun> {
-  throw new Error('not implemented')
+export function createQueryRun(collectionId: string, question: string): Promise<QueryRun> {
+  return apiFetch<QueryRun>('/query-runs', {
+    method: 'POST',
+    body: { collection_id: collectionId, question },
+  })
 }
 
-export function getQueryRun(_runId: string): Promise<QueryRun> {
-  throw new Error('not implemented')
+export function getQueryRun(runId: string): Promise<QueryRun> {
+  return apiFetch<QueryRun>(`/query-runs/${runId}`)
 }
 
 /** POST /query-runs/{runId}/stages/{stage} { params } → 202 StageRun. */
 export function startQueryStage(
-  _runId: string,
-  _stage: QueryStage,
-  _params: object,
+  runId: string,
+  stage: QueryStage,
+  params: object,
 ): Promise<StageRun> {
-  throw new Error('not implemented')
+  return apiFetch<StageRun>(`/query-runs/${runId}/stages/${stage}`, {
+    method: 'POST',
+    body: { params },
+  })
 }
 
 /** POST /query-runs/{runId}/run-all { from_stage, params } → QueryRun (200 or 202). */
 export function runAllQuery(
-  _runId: string,
-  _fromStage: QueryStage | null,
-  _params: { transform: object; retrieve: object; rerank: object; generate: object },
+  runId: string,
+  fromStage: QueryStage | null,
+  params: { transform: object; retrieve: object; rerank: object; generate: object },
 ): Promise<QueryRun> {
-  throw new Error('not implemented')
+  return apiFetch<QueryRun>(`/query-runs/${runId}/run-all`, {
+    method: 'POST',
+    body: { from_stage: fromStage, params },
+  })
 }
 
 /** GET /stage-runs?run_id=&stage= (all versions, newest first). */
-export function listStageRuns(_runId: string, _stage: Stage): Promise<StageRunList> {
-  throw new Error('not implemented')
+export function listStageRuns(runId: string, stage: Stage): Promise<StageRunList> {
+  return apiFetch<StageRunList>(`/stage-runs?run_id=${encodeURIComponent(runId)}&stage=${stage}`)
 }
 
 /** GET /stage-runs/{id}/artifact. */
-export function getArtifact<T>(_stageRunId: string): Promise<T> {
-  throw new Error('not implemented')
+export function getArtifact<T>(stageRunId: string): Promise<T> {
+  return apiFetch<T>(`/stage-runs/${stageRunId}/artifact`)
 }
 
 export function pageImageUrl(stageRunId: string, pageNo: number): string {
