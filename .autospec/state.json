@@ -322,8 +322,7 @@
       "status": "done"
     },
     "T-worker-027": {
-      "status": "blocked",
-      "reason": "agent blocked: Task: T-worker-027 (plan/tasks/T-worker-027.md) \u2014 worker `store` job.\n\nStatus: implementation complete; verify cmd 1 (ruff format/check + mypy) passes; 4/5 locked\nintegration tests pass. 1 test is impossible to make pass from the allowed file:\n\nFAILED: services/worker/tests/integration/test_store_job.py::test_point_ids_and_payload_sample_match_chunk_order\n  line 150: retrieved = client.retrieve(name, ids=EXPECTED_POINT_IDS)\n  line 151: assert set(retrieved.ids) == set(EXPECTED_POINT_IDS)\n  -> E AttributeError: 'list' object has no attribute 'ids'\n\nRoot cause (locked test is incompatible with the pinned dependency qdrant-client==1.20.0):\n1. QdrantClient.retrieve() in 1.20.0 is annotated to return list[qdrant_client.http.models.models.Record]\n   (verified via inspect.signature in the worker-dev container). The built-in list has no .ids\n   attribute. Record fields are ['id', 'payload', 'vector', 'shard_key', 'order_value'] \u2014 no .ids\n   either. The test's `client` is created by the test's own fixture (line 87), so no implementation\n   in rag_worker/jobs/store.py can change this.\n2. Even with a .ids accessor the assertion would still fail: a live check against qdrant-test shows\n   retrieved point ids come back as dashed UUID strings ('2810eda0-85a6-5a6a-b43c-9f2db3be33c1'),\n   while EXPECTED_POINT_IDS (haystack convert_id) are 32-hex strings without dashes\n   ('2810eda085a65a6ab43c9f2db3be33c1'). Set equality is False.\n\nEvidence:\n  - verify cmd 2 output: `1 failed, 4 passed`; failure at test line 151 as above.\n  - container introspection: qdrant-client 1.20.0; `retrieve` return annotation\n    `list[...models.Record]`; `hasattr([], 'ids')` is False.\n  - live upsert/retrieve round-trip: type(retrieve result) == <class 'list'>; record.id is a dashed\n    UUID string; `set(record ids) == {expected}` is False.\n\nWhy not fixable within the task constraints:\n- The only editable file is services/worker/src/rag_worker/jobs/store.py. The broken assertion\n  operates on the test's own QdrantClient instance against the pinned 1.20.0 API; making it pass\n  would require editing the locked test or monkey-patching the third-party qdrant_client library\n  (and faking the id representation) from store.py \u2014 both forbidden (\"never modify a test file\",\n  \"do not work around it by editing other files\", minimal-change rule).\n- The job implementation itself is verified correct by the 4 passing tests: points written in\n  chunk order (point_ids match convert_id output), payload_sample matches the fixture exactly,\n  delete-then-write idempotency (second run reports points_deleted=4), summary/artifact/summary\n  contract validation, and QDRANT_ERROR on unreachable Qdrant.\n\nSuggested planner fix: update the locked test lines 150-151 to the 1.20.0 API, e.g.\n  retrieved = client.retrieve(name, ids=EXPECTED_POINT_IDS)\n  retrieved_ids = [str(r.id) for r in retrieved]  # or compare against dashed UUID strings\n  assert set(retrieved_ids) == {str(uuid.UUID(pid)) for pid in EXPECTED_POINT_IDS}\n(or drop the retrieve-based re-check and rely on the point_ids assertion, which already passes)."
+      "status": "pending"
     },
     "T-worker-028t": {
       "status": "done"
@@ -335,8 +334,7 @@
       "status": "done"
     },
     "T-worker-029": {
-      "status": "blocked",
-      "reason": "agent blocked: T-worker-029 (attempt 2): services/worker/src/rag_worker/jobs/transform.py is implemented and verified \u2014 lint, types and 4 of 5 locked tests pass (none, multi_query, hyde, summary). The remaining test, test_chat_generator_error_fails_with_llm_error, is internally contradictory and cannot be passed by any implementation of the only editable file:\n\n- The locked helper _run (tests/unit/test_transform_job.py lines 55-59) unconditionally reads the artifact back: `await ctx[\"store\"].get_json(bucket, ARTIFACT_KEY)` after `transform(ctx, payload)` returns.\n- FakeObjectStore.get_json -> get_bytes (tests/fakes/__init__.py lines 16-18) raises WorkerError('ARTIFACT_NOT_FOUND') for a missing key. The LLM-error path stores no artifact: run_stage maps the WorkerError to reporter.failed() (src/rag_worker/report.py lines 176-178), and StageReporter.failed only calls api.stage_result + events.publish (report.py lines 112-136) \u2014 only done() stores the artifact.\n- The test then asserts (line 204) `ctx[\"store\"].objects == {}` \u2014 the store must be empty. But lines 183-205 contain no `await` between _run and that assertion, so the store state at the get_json call (line 182, inside _run) is identical to the state at line 204. For _run to return, the artifact key must be present in objects; for line 204 to pass, objects must be empty. Contradiction \u2014 verified empirically: the test fails at line 182 with ARTIFACT_NOT_FOUND.\n- No workaround exists within edit: only jobs/transform.py is editable; FakeObjectStore (no delete API) and the test are locked; a deferred background task cannot run between line 182 and line 204 (no awaits). Storing the artifact on failure would also violate the run_stage contract (artifact stored only on success) and the objects == {} assertion.\n\nSuggested planner fix: make the locked _run tolerate a missing artifact on the failure path (e.g. catch WorkerError with code ARTIFACT_NOT_FOUND and return artifact=None), as tests/unit/test_generate_job.py's _run already does."
+      "status": "pending"
     },
     "T-worker-030t": {
       "status": "done"
@@ -594,29 +592,25 @@
       "status": "done"
     },
     "T-web-032": {
-      "status": "skipped",
-      "reason": "dependency T-worker-027 is blocked"
+      "status": "pending"
     },
     "T-web-033t": {
       "status": "done"
     },
     "T-web-033": {
-      "status": "skipped",
-      "reason": "dependency T-worker-027 is blocked"
+      "status": "pending"
     },
     "T-web-034t": {
       "status": "done"
     },
     "T-web-034": {
-      "status": "skipped",
-      "reason": "dependency T-worker-027 is blocked"
+      "status": "pending"
     },
     "T-web-035t": {
       "status": "done"
     },
     "T-web-035": {
-      "status": "skipped",
-      "reason": "dependency T-worker-027 is blocked"
+      "status": "pending"
     },
     "T-web-036t": {
       "status": "done"
@@ -640,15 +634,13 @@
       "status": "done"
     },
     "T-web-039": {
-      "status": "skipped",
-      "reason": "dependency T-worker-027 is blocked"
+      "status": "pending"
     },
     "T-web-040t": {
       "status": "done"
     },
     "T-web-040": {
-      "status": "skipped",
-      "reason": "dependency T-worker-027 is blocked"
+      "status": "pending"
     },
     "T-web-041t": {
       "status": "done"
@@ -666,8 +658,7 @@
       "status": "done"
     },
     "T-web-043": {
-      "status": "skipped",
-      "reason": "dependency T-web-033 is skipped"
+      "status": "pending"
     }
   }
 }

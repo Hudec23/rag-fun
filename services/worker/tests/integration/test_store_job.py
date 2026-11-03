@@ -8,7 +8,7 @@ import json
 from collections.abc import Iterator
 from contextlib import suppress
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from haystack_integrations.document_stores.qdrant.converters import convert_id
@@ -147,8 +147,9 @@ async def test_point_ids_and_payload_sample_match_chunk_order(ctx, frozen_now, q
     assert artifact["payload_sample"] == EXPECTED_PAYLOAD_SAMPLE
     assert artifact["payload_sample"]["meta"]["tags"] == ["finance", "q3"]
     assert artifact["payload_sample"]["meta"]["tags"] == PAYLOAD["file"]["tags"]
+    # retrieve() returns list[Record]; Qdrant echoes ids as dashed UUIDs, convert_id gives 32-hex.
     retrieved = client.retrieve(name, ids=EXPECTED_POINT_IDS)
-    assert set(retrieved.ids) == set(EXPECTED_POINT_IDS)
+    assert {UUID(str(r.id)) for r in retrieved} == {UUID(p) for p in EXPECTED_POINT_IDS}
     assert ctx["running"] == 0
 
 

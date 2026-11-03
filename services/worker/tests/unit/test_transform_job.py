@@ -53,10 +53,13 @@ def _stage_event(event_type: str, **extra: Any) -> dict[str, Any]:
 
 
 async def _run(ctx: dict[str, Any], payload: dict[str, Any]) -> tuple[dict[str, Any], Any]:
-    """Run the transform job and read the artifact back from the artifacts bucket."""
+    """Run the transform job and read the artifact back from the artifacts bucket (None when the
+    job failed and stored nothing)."""
     result = await transform(ctx, payload)
-    artifact = await ctx["store"].get_json(ctx["settings"].s3_bucket_artifacts, ARTIFACT_KEY)
-    return result, artifact
+    bucket = ctx["settings"].s3_bucket_artifacts
+    if (bucket, ARTIFACT_KEY) not in ctx["store"].objects:
+        return result, None
+    return result, await ctx["store"].get_json(bucket, ARTIFACT_KEY)
 
 
 async def test_none_skips_llm_and_passes_question_through(ctx, frozen_now, monkeypatch) -> None:
