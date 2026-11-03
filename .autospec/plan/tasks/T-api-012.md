@@ -26,7 +26,7 @@ Integration test: uses the `session`/`client` fixtures (postgres-test).
 
 Stub in `services/api/src/rag_api/services/app_settings.py` (signatures are final; replace only the bodies that raise NotImplementedError):
 ```python
-"""Settings row 'app' (R-020). Value shape: autospec/plan/services/api.schema.sql (settings table comment)."""
+"""Settings row 'app' (R-020). Value shape: .autospec/plan/services/api.schema.sql (settings table comment)."""
 from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from rag_api.schemas.settings import SettingsOut, SettingsUpdate
@@ -68,7 +68,7 @@ async def reranker_model(session: AsyncSession) -> str:
 2. Run the verify commands; fix until green.
 
 ## Do not
-- Do not edit any test file, anything under contracts/ or autospec/plan/, pyproject.toml or uv.lock.
+- Do not edit any test file, anything under contracts/ or .autospec/plan/, pyproject.toml or uv.lock.
 - Do not add dependencies or change signatures of existing functions/classes.
 - Do not catch broad exceptions to hide failures; raise the documented AppError/WorkerError codes.
 

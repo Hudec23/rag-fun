@@ -82,7 +82,7 @@ SSE buffering off), api 8000, qdrant 6333, s3 console 9001. All bound to `127.0.
 
 ## 4. Data
 **api — Postgres 17 database `ragfun`**, SQLAlchemy 2.1 async (asyncpg), migrations with Alembic in
-`services/api/alembic/`, schema in `services/api/src/rag_api/db/models.py`. **Exact DDL: autospec/plan/services/api.schema.sql** (wins over the summary below). Tables:
+`services/api/alembic/`, schema in `services/api/src/rag_api/db/models.py`. **Exact DDL: .autospec/plan/services/api.schema.sql** (wins over the summary below). Tables:
 - `batches` (id, name, tags text[], created_at)
 - `files` (id, batch_id, filename, mime, size_bytes, s3_key, sha256, tags text[], created_at)
 - `collections` (id, name unique, qdrant_name unique, dense_model, dense_dims, sparse_model, created_at)
@@ -163,7 +163,7 @@ services/
 contracts/    openapi/{api.yaml,internal.yaml}, jobs/, events/, artifacts/, qdrant/, shared/{common,summary,pipeline-graph}.schema.json, shared/errors.json, README.md (index + test plan)
 tests/contract_fixtures/  one valid example JSON per contract schema (planner-written, shared by all services)
 tests/e2e/    pytest + httpx against the running stack (MODEL_BACKEND=fake), fixtures/ (sample files)
-autospec/plan/         SYSTEM.md, services/, features.yaml, tasks/, TRACEABILITY.md
+.autospec/plan/         SYSTEM.md, services/, features.yaml, tasks/, TRACEABILITY.md
 docker-compose.yml       full app (web, api, worker-ingest, worker-query, postgres, redis, qdrant, s3), named volumes for data
 .env.defaults            committed defaults for every var in §6
 start.sh, stop.sh        one-command start/stop for macOS/Linux (bash)

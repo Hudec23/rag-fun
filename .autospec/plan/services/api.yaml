@@ -1,4 +1,4 @@
-# autospec/plan/services/api.yaml
+# .autospec/plan/services/api.yaml
 # Every command runs from the repo root inside the runner container (which has Docker via DinD).
 name: api
 path: services/api

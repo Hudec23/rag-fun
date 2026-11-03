@@ -1,4 +1,4 @@
-# autospec/plan/services/web.yaml
+# .autospec/plan/services/web.yaml
 name: web
 path: services/web
 language: typescript

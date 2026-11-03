@@ -1,4 +1,4 @@
-# autospec/plan/services/integration.yaml — cross-service acceptance tests (tests/e2e) against the full app
+# .autospec/plan/services/integration.yaml — cross-service acceptance tests (tests/e2e) against the full app
 # (docker-compose.yml + docker-compose.e2e.yml: fake models, no host ports, project ragfun-e2e).
 name: integration
 path: tests/e2e

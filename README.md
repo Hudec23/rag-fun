@@ -56,7 +56,7 @@ the health of every service.
 
 All ports bind to `127.0.0.1`. Every interface between services is a frozen contract in
 [`contracts/`](contracts) (OpenAPI, JSON Schema for jobs, events, artifacts and the Qdrant payload).
-The full spec is [`autospec/plan/SYSTEM.md`](autospec/plan/SYSTEM.md).
+The full spec is [`.autospec/plan/SYSTEM.md`](.autospec/plan/SYSTEM.md).
 
 Configuration: `docker-compose.yml` loads [`.env.defaults`](.env.defaults) (all values preset).
 Put overrides in an optional `.env` (gitignored). Chat provider, models and API keys are set in the
@@ -107,64 +107,57 @@ tests/e2e                  end-to-end tests, one file per feature
 tests/contract_fixtures    one valid instance per contract message, shared by all suites
 scripts/                   contract validation and codegen, fixture generator
 start.* / stop.*           one-command start/stop (sh, ps1, cmd)
-autospec/                  the AI planning + build kit that produced this repo (see below)
+.autospec/                 the AI plan + build kit that produced this repo (see below)
 ```
 
 ## Autospec
 
 rag-fun was planned by Claude and implemented, task by task, by a local model, using
-[autospec-kit](https://github.com/Hudec23/autospec-kit). Everything for that lives in `autospec/`.
-None of it is needed to run or develop the app.
+[autospec-kit](https://github.com/Hudec23/autospec-kit). None of it is needed to run or develop
+the app.
 
 ```
-autospec/
-  CLAUDE.md          planner instructions for Claude Code
-  AGENTS.md          executor rules for the local model (opencode)
-  opencode.json      opencode config: local vLLM model, loads AGENTS.md, defines the rescue agent
-  agents/rescue.md   prompt of the stronger cloud subagent the executor calls when stuck
-  planning/          planner prompts 01-system … 05-unblock
-  templates/         templates the planner copies into plan/
+.autospec/
+  kit/               the kit (git subtree; never edit it here, see "Update the kit")
   plan/              SYSTEM.md (spec), services/*.yaml, features.yaml, tasks/T-*.md, TRACEABILITY.md
-  .autospec/         state.json (status of every task); runs/ holds logs (gitignored)
-  scripts/           autospec-run.py (runner), autospec-check.py (plan checker), plan/ (task generator)
+  plan/generator/    this repo's task generator (planner tool)
+  state.json         status of every task; runs/ holds logs (gitignored)
+CLAUDE.md            imports the kit's planner instructions
+AGENTS.md            this repo's commands for the executor (rules come from the kit)
+opencode.json        local vLLM model, kit executor rules, rescue agent
 ```
 
-The kit sits in `autospec/` rather than at the repo root, so the tools do not pick it up
-automatically. Point them at it:
-
-**Plan or change the plan (Claude Code).** In the repo root, start with
-"Read `autospec/CLAUDE.md`", then run the prompts in `autospec/planning/` in order. After any
-plan change, run the checker; it regenerates `autospec/plan/TRACEABILITY.md`:
+**Plan or change the plan (Claude Code).** Open Claude Code in the repo root and run the planning
+skills (`/autospec-system`, `/autospec-contracts`, `/autospec-tasks`, `/autospec-audit`). After any
+plan change, run the checker; it regenerates `.autospec/plan/TRACEABILITY.md`:
 
 ```sh
 docker run --rm -v "$PWD":/w -w /w python:3.12.16-slim sh -c \
-  'pip install -q --root-user-action=ignore pyyaml==6.0.2 && python autospec/scripts/autospec-check.py'
+  'pip install -q --root-user-action=ignore pyyaml==6.0.2 && python .autospec/kit/scripts/autospec-check.py'
 ```
 
 **Build (the runner).** This needs [opencodocker](https://github.com/Hudec23/opencodocker).
 Run it from a real terminal, because `run.sh` needs a TTY:
 
 ```sh
-python3 autospec/scripts/autospec-run.py --runner ~/Dev/opencode-docker/run.sh --dry-run   # order + status
-python3 autospec/scripts/autospec-run.py --runner ~/Dev/opencode-docker/run.sh             # run every pending task
-python3 autospec/scripts/autospec-run.py --runner ~/Dev/opencode-docker/run.sh --only T-api-001
+export AUTOSPEC_RUNNER=~/Dev/opencodocker/run.sh
+python3 .autospec/kit/scripts/autospec-run.py --dry-run          # order + status
+python3 .autospec/kit/scripts/autospec-run.py                    # run every pending task
+python3 .autospec/kit/scripts/autospec-run.py --only T-api-001
 ```
 
-For each pending task whose dependencies are done, the runner:
+Ctrl-C stops at once and leaves the task pending. `touch .autospec/STOP` stops after the current
+task. To fix blocked tasks, run `/autospec-unblock` in Claude Code.
 
-1. starts a fresh opencode session with `--config autospec/opencode.json`;
-2. reverts any edit outside the task's `edit:` list;
-3. runs the task's `verify:` commands itself, in the project's DinD container;
-4. commits on green, or retries and finally marks the task `blocked`.
+**Update the kit.**
 
-Ctrl-C stops at once and leaves the task pending. `touch autospec/.autospec/STOP` stops after the
-current task. To fix blocked tasks, follow `autospec/planning/05-unblock.md`.
+```sh
+git subtree pull --prefix .autospec/kit https://github.com/Hudec23/autospec-kit main --squash
+sh .autospec/kit/init.sh && git add -A && git commit -m "Update autospec kit"
+```
 
-`opencode.json` uses container paths (`/workspace/autospec/...`), because `run.sh` mounts the repo
-at `/workspace`.
-
-Do not rerun the task generator (`autospec/scripts/plan/gen.py`) on this finished repo. It pastes
-the current stub source into every task, and the stubs are now real implementations.
+Do not rerun the task generator (`.autospec/plan/generator/gen.py`) on this finished repo. It
+pastes the current stub source into every task, and the stubs are now real implementations.
 
 ## License
 

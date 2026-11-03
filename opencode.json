@@ -3,7 +3,7 @@
   "model": "vllm/local",
   "small_model": "vllm/local",
   "instructions": [
-    "/workspace/autospec/AGENTS.md"
+    ".autospec/kit/EXECUTOR.md"
   ],
   "provider": {
     "vllm": {
@@ -36,7 +36,7 @@
       "mode": "subagent",
       "model": "anthropic/claude-opus-5-5",
       "steps": 25,
-      "prompt": "{file:/workspace/autospec/agents/rescue.md}"
+      "prompt": "{file:./.autospec/kit/opencode/rescue.md}"
     }
   },
   "permission": {
@@ -50,6 +50,9 @@
       "git reset --hard*": "deny",
       "rm -rf /*": "deny",
       "sudo *": "deny"
+    },
+    "skill": {
+      "autospec-*": "deny"
     }
   },
   "mcp": {

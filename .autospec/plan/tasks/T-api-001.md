@@ -43,7 +43,7 @@ def parse_tags_csv(raw: str | None) -> list[str]:
 2. Run the verify commands; fix until green.
 
 ## Do not
-- Do not edit any test file, anything under contracts/ or autospec/plan/, pyproject.toml or uv.lock.
+- Do not edit any test file, anything under contracts/ or .autospec/plan/, pyproject.toml or uv.lock.
 - Do not add dependencies or change signatures of existing functions/classes.
 - Do not catch broad exceptions to hide failures; raise the documented AppError/WorkerError codes.
 

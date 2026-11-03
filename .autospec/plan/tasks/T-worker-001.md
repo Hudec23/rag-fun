@@ -39,7 +39,7 @@ def chunk_stats(char_counts: list[int]) -> dict[str, Any]:
 2. Run the verify commands; fix until green.
 
 ## Do not
-- Do not edit any test file, anything under contracts/ or autospec/plan/, pyproject.toml or uv.lock.
+- Do not edit any test file, anything under contracts/ or .autospec/plan/, pyproject.toml or uv.lock.
 - Do not add dependencies or change signatures of existing functions/classes.
 - Do not catch broad exceptions to hide failures; raise the documented AppError/WorkerError codes.
 

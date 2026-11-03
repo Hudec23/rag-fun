@@ -24,7 +24,7 @@ Integration test: uses the `session`/`client` fixtures (postgres-test).
 
 Stub in `services/api/src/rag_api/services/app_settings.py` (signatures are final; replace only the bodies that raise NotImplementedError):
 ```python
-"""Settings row 'app' (R-020). Value shape: autospec/plan/services/api.schema.sql (settings table comment)."""
+"""Settings row 'app' (R-020). Value shape: .autospec/plan/services/api.schema.sql (settings table comment)."""
 from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from rag_api.schemas.settings import SettingsOut, SettingsUpdate

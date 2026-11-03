@@ -1,4 +1,4 @@
-# autospec/plan/services/worker.yaml
+# .autospec/plan/services/worker.yaml
 name: worker
 path: services/worker
 language: python

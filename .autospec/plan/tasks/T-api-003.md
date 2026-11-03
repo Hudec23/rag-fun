@@ -70,7 +70,7 @@ class S3ObjectStore:
 3. ensure_bucket: head_bucket, create_bucket on 404.
 
 ## Do not
-- Do not edit any test file, anything under contracts/ or autospec/plan/, pyproject.toml or uv.lock.
+- Do not edit any test file, anything under contracts/ or .autospec/plan/, pyproject.toml or uv.lock.
 - Do not add dependencies or change signatures of existing functions/classes.
 - Do not catch broad exceptions to hide failures; raise the documented AppError/WorkerError codes.
 
