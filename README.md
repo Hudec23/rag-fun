@@ -1,87 +1,150 @@
-# autospec — AI-agent planning kit
+# rag-fun
 
-A set of structured prompts and templates for designing a multi-service system so a weak local model can implement it unattended. You bring the runner (e.g. [opencodocker](https://github.com/Hudec23/opencodocker)).
+A local, single-user **visual lab for Retrieval-Augmented Generation**. Upload files and walk them
+through every RAG stage one step at a time, inspecting what each stage produced before running the
+next:
 
-```
-planning/          Claude prompts — run in order during phase 1
-  01-system.md     Interview → plan/SYSTEM.md + plan/services/*.yaml
-  02-contracts.md  Freeze every cross-service interface in contracts/
-  03-tasks.md      Walking skeleton, acceptance tests, task pairs
-  04-audit.md      Claude audits the plan as the weak executor
-  05-unblock.md    Diagnose and fix blocked tasks after a run
+upload → **parse** → **chunk** → **embed** → **store** (Qdrant) → query **transform** → **retrieve** →
+**rerank** → **generate** (with citations)
 
-templates/         Copy these into plan/ when Claude writes output
-  SYSTEM.md        Architecture doc template
-  service.yaml     Per-service build/test config
-  features.yaml    Feature → acceptance test mapping
-  task-impl.md     Implementation task template
-  task-test.md     Test-writing task template
+Every stage is a separate, re-runnable step with its own parameters, its own visualization, and the
+real Haystack pipeline graph behind it. Runs fully locally with Ollama; no API key needed.
 
-scripts/
-  autospec-check.py  Plan checker; generates plan/TRACEABILITY.md
+## Quick start
 
-CLAUDE.md                      Loaded by Claude Code — planner instructions (phase 1)
-AGENTS.md                      Loaded by opencode — executor rules (phase 2)
-.opencode/agents/rescue.md     Stronger-model subagent opencode spawns when executor is stuck
-```
-
-## How to use
-
-### Phase 1 — plan with Claude
-
-Run each `planning/` prompt in Claude Code, in order (step 3 builds and runs code in Docker, so claude.ai alone is not enough). Each ends with a self-check; don't move on until Claude reports zero open questions.
-
-1. `planning/01-system.md` — Claude interviews you, writes `plan/SYSTEM.md` and `plan/services/*.yaml`.  
-   **This is the only step that asks you questions.**
-2. `planning/02-contracts.md` — freezes every cross-service interface in `contracts/`.
-3. `planning/03-tasks.md` — walking skeleton with stubs, acceptance tests, and test/impl task pairs.
-4. `planning/04-audit.md` — Claude audits the plan as if it were the weak executor.
-5. Commit everything. That commit is the baseline the runner works from.
-
-### Phase 2 — unattended build
-
-`scripts/autospec-run.py` drives the build. It runs on the host (python3 stdlib, git, Docker) and, for each pending task whose dependencies are done:
-
-1. starts a fresh opencode session for that one task through your sandbox runner (default `~/Dev/opencode-docker/run.sh --keep -- run "<task prompt>"`; override with `--runner` or `$AUTOSPEC_RUNNER`),
-2. reverts any change outside the task's `edit:` list,
-3. runs the task's `verify:` / `expect_fail:` commands itself — the agent never grades its own work,
-4. commits on green and marks the task `done`; otherwise retries with the failing output as feedback, then marks it `blocked` (dependents become `skipped`).
+Requirements: [Docker Desktop](https://www.docker.com/products/docker-desktop/) and
+[Ollama](https://ollama.com/download), both on the host.
 
 ```sh
-python3 scripts/autospec-run.py --dry-run          # show order and status
-python3 scripts/autospec-run.py --only T-api-001t  # one task
-python3 scripts/autospec-run.py                    # loop until nothing is runnable
+./start.sh          # macOS / Linux   (start.cmd on Windows)
+./stop.sh           # stop.cmd on Windows; data is kept
 ```
 
-Run it from a terminal (opencodocker uses `docker run -it`). Ctrl-C stops the loop and leaves the current task pending; `touch .autospec/STOP` stops it after the current task. Logs land in `.autospec/runs/<task>/`. opencode picks up `AGENTS.md` from the project root automatically. Blocked tasks: `planning/05-unblock.md`.
+`start.sh` checks Docker and Ollama, pulls `qwen3:8b` and `bge-m3` if missing, runs
+`docker compose up -d --build --wait`, waits for the api and opens <http://localhost:8080>.
+The **first start takes 10–20 min**: the worker image downloads its Docling, OCR, sparse-embedding
+and reranker models at build time, so later runs are offline except for model calls.
+`./start.sh --no-browser` skips opening the browser.
 
-## What each rule produces
+Wipe all data (database, Qdrant, S3): `docker compose down -v`.
 
-| Rule | Output |
-|---|---|
-| Acceptance tests by Claude | Independent definition of done; executor can't grade its own understanding |
-| Unit tests in a separate earlier task | Implementation can't bend tests to fit |
-| Must-fail check | Catches empty, skipped or always-true tests |
-| Fresh session per task | No context bleed across tasks |
-| ≤3 files to edit, ≤15K tokens to read | Leaves headroom for reasoning and tool output |
-| Contracts frozen first | Services in different languages can be built in any order |
-| Each service tested in its own container | Runner needs only Docker, no language toolchains |
+## What's in the UI
 
-## Prior art
+| Page | Path | What you do there |
+|---|---|---|
+| Files | `/` | Upload batches (drag & drop), tag files and batches, start ingest runs |
+| Ingest run | `/ingest/:runId` | Parse (`docling_layout`, `docling_ocr`, `plain_text`) → chunk (`fixed`, `sentence`, `recursive`, `semantic`, `structure`, `table`) → embed (inspect tokens, heatmap, PCA/UMAP scatter, similarity matrix) → store |
+| Query | `/query`, `/query/:runId` | Transform (`none`, `rewrite`, `multi_query`, `hyde`) → retrieve (`dense`, `sparse`, `hybrid` + filters) → rerank → generate (prompt, token budget, streamed answer, citations) |
+| Qdrant browser | `/qdrant/:collectionId?` | Collection info, paginated points, payload filter builder, raw JSON of a point |
+| Collections | `/collections` | Create collections (dense + sparse model fixed per collection) |
+| Pipelines | `/pipelines` | The actual Haystack pipeline graph of every stage |
+| Settings | `/settings` | Chat provider: Ollama, Anthropic or any OpenAI-compatible endpoint; reranker on/off; test connection |
 
-Most ideas here are established practice; the assembly and file formats are new.
+Re-running a stage creates a new version and marks downstream stages `stale`; "Run all" runs the
+remaining stages with the current parameters. Progress streams live over SSE, and the status bar shows
+the health of every service.
 
-| Piece | Origin |
-|---|---|
-| Spec → plan → tasks phases | Spec-driven development (GitHub Spec Kit, OpenSpec, AWS Kiro) |
-| Fresh session per task, commit on green, loop until done | "Ralph" loop pattern (community convention) |
-| Acceptance tests outside, unit tests inside | Double-loop TDD / ATDD — Freeman & Pryce, *Growing Object-Oriented Software* |
-| Tests must fail before implementation | TDD red-green-refactor — Kent Beck |
-| Tests written by someone other than the implementer | Separation of duties; holdout test sets in SWE-bench and dark-factory CI |
-| Contracts frozen first (OpenAPI, proto, JSON Schema) | API-first / contract-first design; consumer-driven contract testing (Pact) |
-| Walking skeleton before features | Alistair Cockburn |
-| Small, independent, testable tasks | INVEST user stories; trunk-based development |
-| Pinned deps, per-service build containers | Hermetic / reproducible builds |
-| `git reset` on failure, CI-style gates | Standard CI practice |
+## Architecture
 
-What is new: the file formats (`plan/services/*.yaml`, task frontmatter, `features.yaml`), the specific token and file-count limits (heuristics for a 64K window — adjust after your first real run), and the test-task / impl-task split with auto-locking applied to a weak local executor.
+| Service | Stack | Role |
+|---|---|---|
+| `web` | React 19 + Vite, served by nginx on **:8080** | UI; proxies `/api` to the api |
+| `api` | FastAPI + Postgres, **:8000** | REST + SSE, uploads, run/stage bookkeeping, settings, read-only Qdrant browser; enqueues jobs |
+| `worker-ingest` / `worker-query` | Haystack + arq (one image, two queues) | Run every pipeline; write Qdrant and artifacts; report back to the api |
+| postgres, redis, qdrant (**:6333**), s3 (rustfs, console **:9001**) | pinned images | Storage and queueing |
+| Ollama | native on the host, `:11434` | Default chat (`qwen3:8b`) and dense embeddings (`bge-m3`) |
+
+All ports bind to `127.0.0.1`. Every interface between services is a frozen contract in
+[`contracts/`](contracts) (OpenAPI, JSON Schema for jobs, events, artifacts and the Qdrant payload).
+The full spec is [`plan/SYSTEM.md`](plan/SYSTEM.md).
+
+Configuration: `docker-compose.yml` loads [`.env.defaults`](.env.defaults) (all values preset).
+Put overrides in an optional `.env` (gitignored). Chat provider, models and API keys are set in the
+Settings page, not in env vars.
+
+## Checking the code
+
+Everything runs in containers; the host only needs Docker. Tests use `MODEL_BACKEND=fake`
+(deterministic fake embedders, ranker and chat), so no test calls a real model.
+
+**Lint, types and tests per service.** `docker-compose.dev.yml` starts throwaway
+postgres/redis/qdrant/s3 test containers as needed:
+
+```sh
+D="docker compose -f docker-compose.dev.yml run --rm"
+
+# api
+$D api-dev sh -c 'uv run --frozen ruff format --check . && uv run --frozen ruff check . && uv run --frozen mypy src'
+$D api-dev uv run --frozen pytest -q
+
+# worker
+$D worker-dev sh -c 'uv run --frozen ruff format --check . && uv run --frozen ruff check . && uv run --frozen mypy src'
+$D worker-dev uv run --frozen pytest -q
+
+# web
+$D web-dev npm run build      # tsc -b && vite build
+$D web-dev npm run lint       # prettier --check . && eslint .
+$D web-dev npx vitest run
+```
+
+**End-to-end.** This runs the whole app stack with fake models in its own `ragfun-e2e` project. It
+publishes no host ports, so it can run while the real app is up:
+
+```sh
+E="docker compose -p ragfun-e2e -f docker-compose.yml -f docker-compose.e2e.yml"
+$E up -d --build --wait
+$E --profile e2e run --rm e2e pytest -q                                          # all of tests/e2e
+$E --profile e2e run --rm e2e pytest -q /workspace/tests/e2e/test_generate.py    # one feature
+$E down -v
+```
+
+**Contracts.** Run these after editing anything in `contracts/`:
+
+```sh
+docker run --rm -v "$PWD":/w -w /w python:3.12.16-slim sh -c \
+  'pip install -q --root-user-action=ignore --disable-pip-version-check jsonschema==4.26.0 \
+   openapi-spec-validator==0.9.0 pyyaml==6.0.3 && python scripts/validate-contracts.py'
+scripts/gen-contracts.sh      # regenerate the pydantic models in services/*/src/*/contracts_gen
+```
+
+**Manual check with real models.** The automated suites never touch Ollama, Docling, OCR or the
+reranker, so after `./start.sh` walk one file through the UI:
+
+1. Files: upload a PDF and a scanned image, tag them.
+2. Ingest run: parse the PDF with `docling_layout` (bounding boxes appear) and the image with
+   `docling_ocr`; chunk, embed, store.
+3. Qdrant browser: the points exist, the tag filter narrows them, a point shows its vectors.
+4. Query: ask something from the PDF with `hybrid` retrieval and rerank on; the answer streams in and
+   its `[n]` citations link to the chunks.
+5. Settings: "test connection" succeeds for Ollama.
+
+## Repository layout
+
+```
+services/api               FastAPI app, alembic migrations, tests
+services/worker            Haystack jobs and pipelines, tests
+services/web               React app, vitest tests
+contracts/                 frozen cross-service interfaces (source of truth)
+tests/e2e                  end-to-end tests, one file per feature
+tests/contract_fixtures    one valid instance per contract message, shared by all suites
+scripts/                   contract validation and codegen, fixture generator, autospec plan tools
+start.* / stop.*           one-command start/stop (sh, ps1, cmd)
+```
+
+### How it was built
+
+rag-fun was planned with Claude and then implemented task by task by a local model using
+[autospec-kit](https://github.com/Hudec23/autospec-kit):
+
+- `plan/` holds the spec, the per-service configs, the feature → test mapping and the 220 task files.
+- `.autospec/state.json` records the status of each task.
+- `planning/`, `templates/`, `CLAUDE.md`, `AGENTS.md` and `.opencode/` are the kit's prompts and agent
+  rules.
+- `scripts/autospec-check.py` checks the plan and regenerates `plan/TRACEABILITY.md`.
+- `scripts/autospec-run.py` is the task runner.
+
+None of this is needed to run or develop the app.
+
+## License
+
+See [LICENSE](LICENSE).
