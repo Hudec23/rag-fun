@@ -56,7 +56,7 @@ the health of every service.
 
 All ports bind to `127.0.0.1`. Every interface between services is a frozen contract in
 [`contracts/`](contracts) (OpenAPI, JSON Schema for jobs, events, artifacts and the Qdrant payload).
-The full spec is [`plan/SYSTEM.md`](plan/SYSTEM.md).
+The full spec is [`autospec/plan/SYSTEM.md`](autospec/plan/SYSTEM.md).
 
 Configuration: `docker-compose.yml` loads [`.env.defaults`](.env.defaults) (all values preset).
 Put overrides in an optional `.env` (gitignored). Chat provider, models and API keys are set in the
@@ -64,59 +64,37 @@ Settings page, not in env vars.
 
 ## Checking the code
 
-Everything runs in containers; the host only needs Docker. Tests use `MODEL_BACKEND=fake`
+All checks run in containers; the host only needs Docker. Tests use `MODEL_BACKEND=fake`
 (deterministic fake embedders, ranker and chat), so no test calls a real model.
-
-**Lint, types and tests per service.** `docker-compose.dev.yml` starts throwaway
-postgres/redis/qdrant/s3 test containers as needed:
 
 ```sh
 D="docker compose -f docker-compose.dev.yml run --rm"
-
-# api
-$D api-dev sh -c 'uv run --frozen ruff format --check . && uv run --frozen ruff check . && uv run --frozen mypy src'
-$D api-dev uv run --frozen pytest -q
-
-# worker
-$D worker-dev sh -c 'uv run --frozen ruff format --check . && uv run --frozen ruff check . && uv run --frozen mypy src'
-$D worker-dev uv run --frozen pytest -q
-
-# web
-$D web-dev npm run build      # tsc -b && vite build
-$D web-dev npm run lint       # prettier --check . && eslint .
-$D web-dev npx vitest run
-```
-
-**End-to-end.** This runs the whole app stack with fake models in its own `ragfun-e2e` project. It
-publishes no host ports, so it can run while the real app is up:
-
-```sh
 E="docker compose -p ragfun-e2e -f docker-compose.yml -f docker-compose.e2e.yml"
-$E up -d --build --wait
-$E --profile e2e run --rm e2e pytest -q                                          # all of tests/e2e
-$E --profile e2e run --rm e2e pytest -q /workspace/tests/e2e/test_generate.py    # one feature
-$E down -v
+
+# lint + types + unit/integration tests, per service (svc = api | worker)
+$D api-dev sh -c 'uv run --frozen ruff format --check . && uv run --frozen ruff check . && uv run --frozen mypy src && uv run --frozen pytest -q'
+$D web-dev sh -c 'npm run build && npm run lint && npx vitest run'
+
+# end-to-end: full stack with fake models, no host ports (safe next to the running app)
+$E up -d --build --wait && $E --profile e2e run --rm e2e pytest -q; $E down -v
 ```
 
-**Contracts.** Run these after editing anything in `contracts/`:
-
-```sh
-docker run --rm -v "$PWD":/w -w /w python:3.12.16-slim sh -c \
-  'pip install -q --root-user-action=ignore --disable-pip-version-check jsonschema==4.26.0 \
-   openapi-spec-validator==0.9.0 pyyaml==6.0.3 && python scripts/validate-contracts.py'
-scripts/gen-contracts.sh      # regenerate the pydantic models in services/*/src/*/contracts_gen
-```
+Swap `api-dev` for `worker-dev` to check the worker. To run one e2e feature, pass its file:
+`pytest -q /workspace/tests/e2e/test_generate.py`. After editing `contracts/`, validate them with
+`scripts/validate-contracts.py` (the Docker command is in its docstring) and regenerate the pydantic
+models with `scripts/gen-contracts.sh`.
 
 **Manual check with real models.** The automated suites never touch Ollama, Docling, OCR or the
-reranker, so after `./start.sh` walk one file through the UI:
+reranker. After `./start.sh`, walk one file through the UI:
 
-1. Files: upload a PDF and a scanned image, tag them.
-2. Ingest run: parse the PDF with `docling_layout` (bounding boxes appear) and the image with
-   `docling_ocr`; chunk, embed, store.
-3. Qdrant browser: the points exist, the tag filter narrows them, a point shows its vectors.
-4. Query: ask something from the PDF with `hybrid` retrieval and rerank on; the answer streams in and
-   its `[n]` citations link to the chunks.
-5. Settings: "test connection" succeeds for Ollama.
+1. Upload a PDF and a scanned image, then tag them.
+2. Parse the PDF with `docling_layout` (bounding boxes appear) and the image with `docling_ocr`.
+   Then chunk, embed and store.
+3. In the Qdrant browser, the points exist, the tag filter narrows them, and a point shows its
+   vectors.
+4. Ask a question about the PDF with `hybrid` retrieval and rerank on. The answer should stream in,
+   and its `[n]` citations should link to the chunks.
+5. In Settings, "test connection" succeeds for Ollama.
 
 ## Repository layout
 
@@ -127,23 +105,66 @@ services/web               React app, vitest tests
 contracts/                 frozen cross-service interfaces (source of truth)
 tests/e2e                  end-to-end tests, one file per feature
 tests/contract_fixtures    one valid instance per contract message, shared by all suites
-scripts/                   contract validation and codegen, fixture generator, autospec plan tools
+scripts/                   contract validation and codegen, fixture generator
 start.* / stop.*           one-command start/stop (sh, ps1, cmd)
+autospec/                  the AI planning + build kit that produced this repo (see below)
 ```
 
-### How it was built
+## Autospec
 
-rag-fun was planned with Claude and then implemented task by task by a local model using
-[autospec-kit](https://github.com/Hudec23/autospec-kit):
+rag-fun was planned by Claude and implemented, task by task, by a local model, using
+[autospec-kit](https://github.com/Hudec23/autospec-kit). Everything for that lives in `autospec/`.
+None of it is needed to run or develop the app.
 
-- `plan/` holds the spec, the per-service configs, the feature → test mapping and the 220 task files.
-- `.autospec/state.json` records the status of each task.
-- `planning/`, `templates/`, `CLAUDE.md`, `AGENTS.md` and `.opencode/` are the kit's prompts and agent
-  rules.
-- `scripts/autospec-check.py` checks the plan and regenerates `plan/TRACEABILITY.md`.
-- `scripts/autospec-run.py` is the task runner.
+```
+autospec/
+  CLAUDE.md          planner instructions for Claude Code
+  AGENTS.md          executor rules for the local model (opencode)
+  opencode.json      opencode config: local vLLM model, loads AGENTS.md, defines the rescue agent
+  agents/rescue.md   prompt of the stronger cloud subagent the executor calls when stuck
+  planning/          planner prompts 01-system … 05-unblock
+  templates/         templates the planner copies into plan/
+  plan/              SYSTEM.md (spec), services/*.yaml, features.yaml, tasks/T-*.md, TRACEABILITY.md
+  .autospec/         state.json (status of every task); runs/ holds logs (gitignored)
+  scripts/           autospec-run.py (runner), autospec-check.py (plan checker), plan/ (task generator)
+```
 
-None of this is needed to run or develop the app.
+The kit sits in `autospec/` rather than at the repo root, so the tools do not pick it up
+automatically. Point them at it:
+
+**Plan or change the plan (Claude Code).** In the repo root, start with
+"Read `autospec/CLAUDE.md`", then run the prompts in `autospec/planning/` in order. After any
+plan change, run the checker; it regenerates `autospec/plan/TRACEABILITY.md`:
+
+```sh
+docker run --rm -v "$PWD":/w -w /w python:3.12.16-slim sh -c \
+  'pip install -q --root-user-action=ignore pyyaml==6.0.2 && python autospec/scripts/autospec-check.py'
+```
+
+**Build (the runner).** This needs [opencodocker](https://github.com/Hudec23/opencodocker).
+Run it from a real terminal, because `run.sh` needs a TTY:
+
+```sh
+python3 autospec/scripts/autospec-run.py --runner ~/Dev/opencode-docker/run.sh --dry-run   # order + status
+python3 autospec/scripts/autospec-run.py --runner ~/Dev/opencode-docker/run.sh             # run every pending task
+python3 autospec/scripts/autospec-run.py --runner ~/Dev/opencode-docker/run.sh --only T-api-001
+```
+
+For each pending task whose dependencies are done, the runner:
+
+1. starts a fresh opencode session with `--config autospec/opencode.json`;
+2. reverts any edit outside the task's `edit:` list;
+3. runs the task's `verify:` commands itself, in the project's DinD container;
+4. commits on green, or retries and finally marks the task `blocked`.
+
+Ctrl-C stops at once and leaves the task pending. `touch autospec/.autospec/STOP` stops after the
+current task. To fix blocked tasks, follow `autospec/planning/05-unblock.md`.
+
+`opencode.json` uses container paths (`/workspace/autospec/...`), because `run.sh` mounts the repo
+at `/workspace`.
+
+Do not rerun the task generator (`autospec/scripts/plan/gen.py`) on this finished repo. It pastes
+the current stub source into every task, and the stubs are now real implementations.
 
 ## License
 

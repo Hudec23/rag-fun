@@ -1,0 +1,68 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "vllm/local",
+  "small_model": "vllm/local",
+  "instructions": [
+    "/workspace/autospec/AGENTS.md"
+  ],
+  "provider": {
+    "vllm": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "vLLM (llm-neatly)",
+      "options": {
+        "baseURL": "{env:VLLM_BASE_URL}/v1",
+        "apiKey": "{env:VLLM_API_KEY}"
+      },
+      "models": {
+        "local": {
+          "name": "Local: whatever profile is running",
+          "limit": {
+            "context": 65536,
+            "output": 16384
+          }
+        }
+      }
+    }
+  },
+  "agent": {
+    "build": {
+      "model": "vllm/local"
+    },
+    "plan": {
+      "model": "anthropic/claude-opus-5-5"
+    },
+    "rescue": {
+      "description": "Stronger cloud model for when you are stuck. Call ONLY after the verify commands have failed 3 times on the same error despite your own fixes. Give it the task file path and task id, the failing verify-command output, and what you already tried.",
+      "mode": "subagent",
+      "model": "anthropic/claude-opus-5-5",
+      "steps": 25,
+      "prompt": "{file:/workspace/autospec/agents/rescue.md}"
+    }
+  },
+  "permission": {
+    "edit": "allow",
+    "webfetch": "allow",
+    "bash": {
+      "*": "allow",
+      "git add*": "allow",
+      "git commit*": "allow",
+      "git push*": "deny",
+      "git reset --hard*": "deny",
+      "rm -rf /*": "deny",
+      "sudo *": "deny"
+    }
+  },
+  "mcp": {
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp"
+    },
+    "brave-search": {
+      "type": "remote",
+      "url": "https://mcp.brave.com/mcp",
+      "headers": {
+        "Authorization": "Bearer {env:BRAVE_API_SEARCH_KEY}"
+      }
+    }
+  }
+}

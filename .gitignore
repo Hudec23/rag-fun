@@ -15,6 +15,6 @@ dist/
 coverage/
 *.tsbuildinfo
 # autospec runner
-.autospec/runs/
-.autospec/BLOCKED_REASON
-.autospec/STOP
+autospec/.autospec/runs/
+autospec/.autospec/BLOCKED_REASON
+autospec/.autospec/STOP
