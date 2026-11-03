@@ -43,6 +43,17 @@ def _reporter(ctx: dict[str, Any], t: list[float]) -> StageReporter:
     )
 
 
+def _started_event() -> dict[str, Any]:
+    return {
+        "type": "stage.started",
+        "run_id": RUN_ID,
+        "stage_run_id": STAGE_RUN_ID,
+        "stage": STAGE,
+        "version": VERSION,
+        "ts": TS,
+    }
+
+
 def _progress_event(done: int, total: int, message: str) -> dict[str, Any]:
     return {
         "type": "stage.progress",
@@ -130,6 +141,7 @@ async def test_done_reports_result_before_publishing_completed(ctx, frozen_now) 
     await reporter.done(ARTIFACT, SUMMARY)
     assert ctx["api"].calls[-2:] == ["result", "stage.completed"]
     assert ctx["events"].events == [
+        (RUN_ID, _started_event()),
         (
             RUN_ID,
             {
@@ -142,9 +154,9 @@ async def test_done_reports_result_before_publishing_completed(ctx, frozen_now) 
                 "artifact_key": ARTIFACT_KEY,
                 "summary": SUMMARY,
             },
-        )
+        ),
     ]
-    assert errors(ctx["events"].events[0][1], "events/stage.completed.schema.json") == []
+    assert errors(ctx["events"].events[1][1], "events/stage.completed.schema.json") == []
 
 
 async def test_failed_reports_error_and_publishes_event(ctx, frozen_now) -> None:
@@ -164,6 +176,7 @@ async def test_failed_reports_error_and_publishes_event(ctx, frozen_now) -> None
         }
     ]
     assert ctx["events"].events == [
+        (RUN_ID, _started_event()),
         (
             RUN_ID,
             {
@@ -175,9 +188,9 @@ async def test_failed_reports_error_and_publishes_event(ctx, frozen_now) -> None
                 "ts": TS,
                 "error": ERROR_BODY,
             },
-        )
+        ),
     ]
-    assert errors(ctx["events"].events[0][1], "events/stage.failed.schema.json") == []
+    assert errors(ctx["events"].events[1][1], "events/stage.failed.schema.json") == []
 
 
 async def test_failed_publishes_event_even_when_callback_fails(ctx, frozen_now) -> None:
@@ -187,8 +200,9 @@ async def test_failed_publishes_event_even_when_callback_fails(ctx, frozen_now) 
     await reporter.started()
     await reporter.failed(ERROR_BODY)
     assert ctx["api"].results == []
-    assert ctx["api"].calls == ["started", "result", "stage.failed"]
+    assert ctx["api"].calls == ["started", "stage.started", "result", "stage.failed"]
     assert ctx["events"].events == [
+        (RUN_ID, _started_event()),
         (
             RUN_ID,
             {
@@ -200,5 +214,5 @@ async def test_failed_publishes_event_even_when_callback_fails(ctx, frozen_now) 
                 "ts": TS,
                 "error": ERROR_BODY,
             },
-        )
+        ),
     ]

@@ -93,7 +93,7 @@ async def test_none_skips_llm_and_passes_question_through(ctx, frozen_now, monke
             "finished_at": TS,
         }
     ]
-    assert ctx["api"].calls == ["started", "result", "stage.completed"]
+    assert ctx["api"].calls == ["started", "stage.started", "result", "stage.completed"]
     assert ctx["events"].events == [
         (RUN_ID, _stage_event("stage.started")),
         (
@@ -194,7 +194,7 @@ async def test_chat_generator_error_fails_with_llm_error(ctx, frozen_now, monkey
             "finished_at": TS,
         }
     ]
-    assert ctx["api"].calls == ["started", "result", "stage.failed"]
+    assert ctx["api"].calls == ["started", "stage.started", "result", "stage.failed"]
     assert ctx["events"].events == [
         (RUN_ID, _stage_event("stage.started")),
         (RUN_ID, _stage_event("stage.failed", error=LLM_ERROR_BODY)),

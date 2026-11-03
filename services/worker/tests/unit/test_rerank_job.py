@@ -114,7 +114,7 @@ async def test_enabled_after_reranked_to_top_n(ctx, frozen_now) -> None:
             "finished_at": TS,
         }
     ]
-    assert ctx["api"].calls == ["started", "result", "stage.completed"]
+    assert ctx["api"].calls == ["started", "stage.started", "result", "stage.completed"]
     assert ctx["events"].events == [
         (RUN_ID, _stage_event("stage.started")),
         (
@@ -162,7 +162,7 @@ async def test_disabled_after_order_equals_before_and_skips_ranker(
             "finished_at": TS,
         }
     ]
-    assert ctx["api"].calls == ["started", "result", "stage.completed"]
+    assert ctx["api"].calls == ["started", "stage.started", "result", "stage.completed"]
     assert ctx["events"].events == [
         (RUN_ID, _stage_event("stage.started")),
         (
@@ -204,7 +204,7 @@ async def test_summary_counts_before_and_after(ctx, frozen_now) -> None:
             "finished_at": TS,
         }
     ]
-    assert ctx["api"].calls == ["started", "result", "stage.completed"]
+    assert ctx["api"].calls == ["started", "stage.started", "result", "stage.completed"]
     assert ctx["running"] == 0
 
 
@@ -226,7 +226,7 @@ async def test_missing_retrieve_artifact_fails_artifact_not_found(ctx, frozen_no
             "finished_at": TS,
         }
     ]
-    assert ctx["api"].calls == ["started", "result", "stage.failed"]
+    assert ctx["api"].calls == ["started", "stage.started", "result", "stage.failed"]
     assert ctx["store"].objects == {}
     assert ctx["events"].events == [
         (RUN_ID, _stage_event("stage.started")),

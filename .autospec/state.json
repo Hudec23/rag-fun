@@ -208,15 +208,13 @@
       "status": "done"
     },
     "T-worker-008": {
-      "status": "blocked",
-      "reason": "agent blocked: Task: T-worker-008 (implement StageReporter lifecycle, services/worker/src/rag_worker/report.py)\n\nBLOCKED: the locked test file services/worker/tests/unit/test_reporter.py contains a\nself-contradiction. No implementation of report.py can pass all 6 tests.\n\nEvidence (all in the locked test, verified twice against the actual source):\n\n1. test_started_records_callback_and_publishes_event (line 60-78) calls ONLY\n   `reporter.started()` and asserts (exact list equality):\n       assert ctx[\"events\"].events == [(RUN_ID, {\"type\": \"stage.started\", ...})]\n   => started() MUST publish the stage.started event.\n\n2. test_failed_publishes_event_even_when_callback_fails (line 183-204) calls\n   `reporter.started()` then `reporter.failed(ERROR_BODY)` and asserts (exact list\n   equality):\n       assert ctx[\"api\"].calls == [\"started\", \"result\", \"stage.failed\"]   (line 190)\n       assert ctx[\"events\"].events == [(RUN_ID, {\"type\": \"stage.failed\", ...})]\n   => started() must NOT have published (no \"stage.started\" in calls, no\n   stage.started in events).\n\nThese two tests are mutually unsatisfiable: FakePublisher.publish (tests/fakes/\n__init__.py, fixed by T-worker-008t) unconditionally appends event[\"type\"] to the\nshared `calls` list and the event to `events`; the `ctx` fixture (tests/conftest.py)\nis function-scoped with fresh fakes per test; both tests construct the reporter with\nidentical state (clock lambda -> 0.0). A deterministic started() either publishes\n(test 1 passes, test 7 fails) or does not (test 7 passes, test 1 fails). There is no\ninput or state that distinguishes the two calls.\n\nSame full-list-equality contradiction in:\n- test_done_reports_result_before_publishing_completed (line 132): after started()+done()\n  expects events == [stage.completed only], but started() must have added stage.started.\n- test_failed_reports_error_and_publishes_event (line 166): same, expects\n  events == [stage.failed only].\n\nCurrent state of the implementation (services/worker/src/rag_worker/report.py):\n- implements started/progress/done/failed exactly per the stub docstrings;\n  run_stage left as stub (red tests in tests/unit/test_run_stage.py belong to\n  T-worker-009, expected to stay red).\n- verify cmd 1 (ruff format --check + ruff check + mypy src) passes.\n- verify cmd 2 (pytest tests/unit/test_reporter.py): 4 passed, 3 failed \u2014 exactly the\n  3 tests above; the 3 failures fail on the contradictory full-list assertions, not on\n  callback content or ordering (e.g. api.calls[-2:] == [\"result\", \"stage.completed\"]\n  passes; FakeApi.started/results match expected dicts).\n\nSuggested fix for the planner: in the locked test, replace the full-list equality\nasserts on ctx[\"events\"].events (lines 132, 166, 191) with tail checks (e.g.\nevents[-1:] == [(RUN_ID, terminal_event)]) and change line 190 to\napi.calls[-3:] == [\"result\", \"stage.failed\"] (keeping the \"started\"/\"stage.started\"\nprefix from started()). Do not edit report.py to fix this \u2014 it is docstring-correct;\nany change there would break test 1 instead of fixing tests 5/6/7."
+      "status": "pending"
     },
     "T-worker-009t": {
       "status": "done"
     },
     "T-worker-009": {
-      "status": "skipped",
-      "reason": "dependency T-worker-008 is blocked"
+      "status": "pending"
     },
     "T-worker-010t": {
       "status": "done"
@@ -264,8 +262,7 @@
       "status": "done"
     },
     "T-worker-017": {
-      "status": "skipped",
-      "reason": "dependency T-worker-009 is skipped"
+      "status": "pending"
     },
     "T-worker-018t": {
       "status": "done"
@@ -295,8 +292,7 @@
       "status": "done"
     },
     "T-worker-022": {
-      "status": "skipped",
-      "reason": "dependency T-worker-009 is skipped"
+      "status": "pending"
     },
     "T-worker-023t": {
       "status": "done"
@@ -314,8 +310,7 @@
       "status": "done"
     },
     "T-worker-025": {
-      "status": "skipped",
-      "reason": "dependency T-worker-009 is skipped"
+      "status": "pending"
     },
     "T-worker-026t": {
       "status": "done"
@@ -327,8 +322,7 @@
       "status": "done"
     },
     "T-worker-027": {
-      "status": "skipped",
-      "reason": "dependency T-worker-009 is skipped"
+      "status": "pending"
     },
     "T-worker-028t": {
       "status": "done"
@@ -340,8 +334,7 @@
       "status": "done"
     },
     "T-worker-029": {
-      "status": "skipped",
-      "reason": "dependency T-worker-009 is skipped"
+      "status": "pending"
     },
     "T-worker-030t": {
       "status": "done"
@@ -365,8 +358,7 @@
       "status": "done"
     },
     "T-worker-033": {
-      "status": "skipped",
-      "reason": "dependency T-worker-009 is skipped"
+      "status": "pending"
     },
     "T-worker-034t": {
       "status": "done"
@@ -378,8 +370,7 @@
       "status": "done"
     },
     "T-worker-035": {
-      "status": "skipped",
-      "reason": "dependency T-worker-009 is skipped"
+      "status": "pending"
     },
     "T-worker-036t": {
       "status": "done"
@@ -394,12 +385,10 @@
       "status": "done"
     },
     "T-worker-038t": {
-      "status": "blocked",
-      "reason": "failed 3 attempts; last: agent exited (1) without changing any file"
+      "status": "done"
     },
     "T-worker-038": {
-      "status": "skipped",
-      "reason": "dependency T-worker-009 is skipped"
+      "status": "pending"
     },
     "T-worker-039t": {
       "status": "done"
@@ -447,8 +436,7 @@
       "status": "done"
     },
     "T-web-006": {
-      "status": "skipped",
-      "reason": "dependency T-worker-008 is blocked"
+      "status": "pending"
     },
     "T-web-007t": {
       "status": "done"
@@ -490,8 +478,7 @@
       "status": "done"
     },
     "T-web-013": {
-      "status": "blocked",
-      "reason": "agent blocked: Task T-web-013 (FilterBuilder, service web) is infeasible as specified: the locked test and the pinned dependency pin a contradictory expectation.\n\nStatus: implementation is complete in services/web/src/components/FilterBuilder.tsx (the only permitted edit). Verify cmd 1 passes (tsc + prettier + eslint). Vitest: 3 of 5 locked tests pass. The 2 failures are toolchain-level, not implementation bugs:\n\n1. Test \"page key shows between inputs and typing from emits range gte\" (tests/components/FilterBuilder.test.tsx:66-68) requires on the from/to inputs:\n   - toHaveAttribute('type', 'number')   (line 66-67)\n   - toHaveValue('')                     (line 68-69)\n2. Test \"value with existing conditions renders pre-filled\" (lines 125-126) requires toHaveValue('1') / toHaveValue('3') on the same number inputs.\n\nThe pinned @testing-library/jest-dom 7.0.1 (package.json is immutable) coerces number-input values in getInputValue (node_modules/@testing-library/jest-dom/dist/matchers-3ed9c960.js:195):\n    case 'number':\n      return inputElement.value === '' ? null : Number(inputElement.value)\nand toHaveValue compares with strict === (compareAsSet, line 240). So for ANY genuine <input type=\"number\">:\n   - empty value -> matcher receives null (test expects the string '')\n   - value '1'   -> matcher receives 1 (number) (test expects the string '1')\nThe coercion keys off the element's type PROPERTY, which mirrors the type=\"number\" attribute the same test asserts, so no other element shape can satisfy the full assertion set (user.type also requires a real text-like input).\n\nEmpirical confirmation (probe since deleted): a bare <input type=\"number\"> with no component logic at all fails identically \u2014 expect(from).toHaveValue('') -> \"Received: null\"; expect(to).toHaveValue('1') -> \"Expected: 1 (string), Received: 1 (number)\", while from.value is \"\" and to.value is \"1\" (strings) in the DOM.\n\nThis test was evidently written against an older jest-dom whose toHaveValue returned the raw string value for number inputs; the dependency update to 7.0.1 made the locked assertions unsatisfiable. The only remaining \"fix\" would be DOM property surgery in the component to deceive the matcher, which contradicts the surrounding code style and would break if the expectation is corrected \u2014 deliberately not doing that.\n\nPlanner fix (either), then re-dispatch:\n  a) update the locked test to the 7.0.1 semantics: toHaveValue(null) for empty, toHaveValue(1) / toHaveValue(3) for the numeric assertions; or\n  b) pin @testing-library/jest-dom to the pre-coercion version the test was written against."
+      "status": "pending"
     },
     "T-web-014t": {
       "status": "done"
@@ -587,50 +574,43 @@
       "status": "done"
     },
     "T-web-029": {
-      "status": "skipped",
-      "reason": "dependency T-worker-008 is blocked"
+      "status": "pending"
     },
     "T-web-030t": {
       "status": "done"
     },
     "T-web-030": {
-      "status": "skipped",
-      "reason": "dependency T-worker-008 is blocked"
+      "status": "pending"
     },
     "T-web-031t": {
       "status": "done"
     },
     "T-web-031": {
-      "status": "skipped",
-      "reason": "dependency T-worker-008 is blocked"
+      "status": "pending"
     },
     "T-web-032t": {
       "status": "done"
     },
     "T-web-032": {
-      "status": "skipped",
-      "reason": "dependency T-worker-008 is blocked"
+      "status": "pending"
     },
     "T-web-033t": {
       "status": "done"
     },
     "T-web-033": {
-      "status": "skipped",
-      "reason": "dependency T-worker-008 is blocked"
+      "status": "pending"
     },
     "T-web-034t": {
       "status": "done"
     },
     "T-web-034": {
-      "status": "skipped",
-      "reason": "dependency T-worker-008 is blocked"
+      "status": "pending"
     },
     "T-web-035t": {
       "status": "done"
     },
     "T-web-035": {
-      "status": "skipped",
-      "reason": "dependency T-worker-008 is blocked"
+      "status": "pending"
     },
     "T-web-036t": {
       "status": "done"
@@ -654,15 +634,13 @@
       "status": "done"
     },
     "T-web-039": {
-      "status": "skipped",
-      "reason": "dependency T-web-006 is skipped"
+      "status": "pending"
     },
     "T-web-040t": {
       "status": "done"
     },
     "T-web-040": {
-      "status": "skipped",
-      "reason": "dependency T-worker-008 is blocked"
+      "status": "pending"
     },
     "T-web-041t": {
       "status": "done"
@@ -680,8 +658,7 @@
       "status": "done"
     },
     "T-web-043": {
-      "status": "skipped",
-      "reason": "dependency T-web-006 is skipped"
+      "status": "pending"
     }
   }
 }
